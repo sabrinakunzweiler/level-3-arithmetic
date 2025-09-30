@@ -81,15 +81,6 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: P2 = E.random_point()
         sage: Q1 = H.map_point(P1)
         sage: Q2 = H.map_point(P2)
-
-    Arithmetic on H is implemented as well::
-
-        sage: Q3 = H.add(Q1,Q2)
-        sage: Q3 == H.map_point(P1 + P2)
-        True
-        sage: Q4 = H.double(Q1)
-        sage: Q4 == H.map_point(2*P1)
-        True
     """
 
     def __init__(self, arg, a=1):
@@ -145,31 +136,11 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         s += " over %s" % self.base_ring()
         return s
 
-    def add(self, P, Q):
+    def __call__(self, coords):
         r"""
-        Compute the sum of two points P, Q on the Hessian curve self.
+        Create a point on self from the coordinates.
         """
-        [x1,y1,z1] = P
-        [x2,y2,z2] = Q
-        x3 = x1**2*y2*z2 - x2**2*y1*z1
-        y3 = z1**2*x2*y2 - z2**2*x1*y1
-        z3 = y1**2*x2*z2 - y2**2*x1*z1
-        return self.point([x3,y3,z3])
-
-    def double(self, P):
-        r"""
-        Compute 2*P for a point P on self.
-
-        """
-        [x1,y1,z1] = P
-        x3 = (z1**3 - y1**3)*x1
-        y3 = (y1**3 - self._a*x1**3)*z1
-        z3 = (self._a*x1**3 - z1**3)*y1
-        return self.point([x3,y3,z3])
-
-    def negate(self, P):
-        [x1,y1,z1] = P
-        return self.point([x1,z1,y1])
+        return EllipticCurveHessianPoint(self, coords)
 
     def map_point(self, P):
         r"""
@@ -183,13 +154,143 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
 
         M = self._trafo
         x,y,z = M*vector(P)
-        return self(x,y,z)
+        return self([x,y,z])
 
     def j_invariant(self):
         d = self._d
         a = self._a
         j = (3*d*(8+d**3)/(a*(d**3-a)))**3
         return j
+
+class EllipticCurveHessianPoint(SageObject):
+    r"""
+    Class for representing points on an elliptic curve in
+    Hessian form.
+
+
+    EXAMPLES::
+
+        sage: p = 37
+        sage: Fp = GF(p)
+        sage: R.<x> = Fp[]
+        sage: omega = (x^2+x+1).roots()[0][0]
+        sage: E = EllipticCurve(Fp, [4,1])
+        sage: H = EllipticCurveHessianForm(E)
+
+    We can map points from the "base curve E" to H::
+
+        sage: P1 = E([27,16])
+        sage: Q1 = H.map_point(P1); Q1
+        (10 : 0: 27)
+
+    Or we can create points directly by passing coordinates::
+
+        sage: R1 = H([10,0,27])
+        sage: Q1 == R1
+        True
+        sage: Q1 == H([Fp(10/27),0,1])
+        True
+
+    Arithmetic on H is implemented as well::
+
+        sage: P2 = E([22,9])
+        sage: Q2 = H.map_point(P2); Q2
+        (33 : 16: 15)
+        sage: Q3 = Q1.add(Q2)
+        sage: Q3 == H.map_point(P1 + P2)
+        True
+        sage: Q4 = Q1.double()
+        sage: Q4 == H.map_point(2*P1)
+        True
+    """
+
+    def __init__(self, parent, coords):
+        r"""
+        Constructs the point P = (x : y : z) on an elliptic curve
+        in  Hessian form.
+
+        Alternatively, the input can directly be a tuple (x, u) representing a curve on the Kummer line.
+        """
+        K = coords[0].base_ring()
+        self.__base_ring = K
+
+        self._parent = parent
+
+        if len(coords) == 2: #allow affine input
+            coords.append(K.one())
+
+        assert parent._equation(coords) == 0
+
+        self._x = coords[0]
+        self._y = coords[1]
+        self._z = coords[2]
+
+    def _repr_(self):
+        """
+        String representation.
+        """
+        s = "(%s " % self._x
+        s += ": %s" % self._y
+        s += ": %s)" % self._z
+
+        return s
+
+    def xyz(self):
+        """
+        Return coordinates as tuple.
+        """
+        return self._x, self._y, self._z
+
+    def __eq__(self,other):
+        """
+        Check projective equality of points.
+        """
+        x1, y1, z1 = self.xyz()
+        x2, y2, z2 = other.xyz()
+
+        if z1 != 0:
+            return x2*z1 == x1*z2 and y2*z1 == y1*z2
+        else:
+            return z2 == 0 and x1*y2 == y1*x2
+
+    def add(self, other):
+        r"""
+        Compute the sum of two points P, Q on the Hessian curve self.
+        """
+        x1,y1,z1 = self.xyz()
+        x2,y2,z2 = other.xyz()
+        x3 = x1**2*y2*z2 - x2**2*y1*z1
+        y3 = z1**2*x2*y2 - z2**2*x1*y1
+        z3 = y1**2*x2*z2 - y2**2*x1*z1
+        return self._parent([x3,y3,z3])
+
+    def double(self):
+        r"""
+        Compute `2*self`.
+
+        """
+        x1,y1,z1 = self.xyz()
+        a = self._parent._a
+        x3 = (z1**3 - y1**3)*x1
+        y3 = (y1**3 - a*x1**3)*z1
+        z3 = (a*x1**3 - z1**3)*y1
+        return self._parent([x3,y3,z3])
+
+    def negate(self):
+        """
+        Return `(-1)*self`.
+        """
+        x1,y1,z1 = self.xyz()
+        return self._parent([x1,z1,y1])
+
+    def triple(self):
+        """
+        Compute `3*self`.
+
+        TODO
+        """
+        pass
+
 
 
 
