@@ -1,0 +1,466 @@
+"""
+Elliptic curves in (twisted) Hessian form, and their Kummer lines.
+
+
+Structure for the Kummer line arithmetic follows
+https://github.com/nicolassarkis/sage/blob/kummer_line/src/sage/schemes/elliptic_curves/kummer_line.py
+
+"""
+
+from sage.schemes.generic.morphism import SchemeMorphism
+from sage.structure.element import AdditiveGroupElement
+import sage.schemes.projective.projective_space as projective_space
+from sage.schemes.projective.projective_point import SchemeMorphism_point_projective_ring
+import sage.schemes.curves.projective_curve as plane_curve
+from sage.schemes.elliptic_curves.ell_generic import EllipticCurve_generic
+from sage.structure.element import RingElement
+from sage.structure.sage_object import SageObject
+
+
+#auxiliary function
+def transformation_matrix_to_Hessian(P1,P2,P3,omega):
+    """
+    Return the coordinate transformation to a Hessian form.
+
+    INPUT:
+        - points P1, P2, P3, where (P1,P2) is a basis of the
+        3-torsion of some elliptic curve E, and P3 = P1 + P2,
+        omega = e3(P1,P2), a third root of unity.
+
+    OUTPUT:
+        A 3x3 matrix M defining a transformation t: E -> H, P |-> M * P
+    """
+    assert 3*P1 == 0 and 3*P2 == 0
+    assert P1 + P2 == P3
+
+    x1,y1 = P1.xy()
+    x2,y2 = P2.xy()
+    x3,y3 = P3.xy()
+
+    D = Matrix([[x1,y1,1],[x2,y2,1],[x3,y3,1]])
+    delta = D.determinant()
+    a1 = - (x1 - x3) * delta
+    a3 = omega * (y1 - y3) * (x2 - x3) * (x1 - x2)
+    a2 = - a3 + (x1 + (omega - 1)*x2 + (-omega)*x3) * delta
+    b1 = 0
+    b2 = omega * (x2 - x3) * (x1 - x3) * (x1 - x2)
+    b3 = - b2
+    c1 = x2 * (x1 - x3) * delta
+    c3 = - omega * (x2 - x3) * (x1 - x2) * (x3*y1 - x1*y3)
+    c2 = - c3 - (omega*x1*x2 + (-omega + 1)*x1*x3 - x2*x3) * delta
+
+    M = Matrix([[a1,b1,c1],[a2,b2,c2],[a3,b3,c3]])
+    return M
+
+class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
+    r"""
+    Elliptic curve in Hessian form.
+
+    EXAMPLES:
+
+    We construct a Curve in Hessian form from a given elliptic curve E.
+    We require that E has full rational 3-torsion::
+
+        sage: p = 4*3^3 - 1
+        sage: Fp = GF(p^2)
+        sage: R.<x> = Fp[]
+        sage: omega = (x^2+x+1).roots()[0][0]
+
+        sage: E = EllipticCurve(Fp, [1,0])
+        sage: H = EllipticCurveHessianForm(E); H
+        Elliptic Curve in Hessian form defined by x^3 + y^3 + (-z2 + 30)*x*y*z + z^3 over Finite Field in z2 of size 107^2
+    
+    We can check that the curves are isomorphic, 
+    using the formula for the j-invariant on Hessian curves::
+
+        sage: H.j_invariant() == E.j_invariant()
+
+    We can map the points from E to H::
+
+        sage: P1 = E.random_point()
+        sage: P2 = E.random_point()
+        sage: Q1 = H.map_point(P1)
+        sage: Q2 = H.map_point(P2)
+
+    Arithmetic on H is implemented as well::
+
+        sage: Q3 = H.add(Q1,Q2)
+        sage: Q3 == H.map_point(P1 + P2)
+        True
+        sage: Q4 = H.double(Q1)
+        sage: Q4 == H.map_point(2*P1)
+        True
+    """
+
+    def __init__(self, arg, a=1):
+        r"""
+        Construct an elliptic curve in (twisted) Hessian form
+        a*X^3 + Y^3 + Z^3 = 3*d*X*Y*Z
+        By default, a=1, i.e. the curve is untwisted.
+
+        INPUT:
+
+        - ``arg`` -- either this is ``d``, the Hessian coefficient of the curve
+        (with optional parameter a to define a twist),
+        or an ellitpic curve ``E`` with full rational 3-torsion,
+        and the transformation into Hessian form is computed on the spot
+        """
+
+        if isinstance(arg, RingElement):
+            d = arg
+            K = d.parent()
+            self.__base_ring = K
+            self._d = arg
+            self._a = a
+        elif isinstance(arg, EllipticCurve_generic):
+            E = arg
+            self._elliptic_curve = E
+            K = E.base_ring()
+            self.__base_ring = K
+            [P1,P2] = E.torsion_basis(3)
+            P3 = P1 + P2
+            omega = P1.weil_pairing(P2, 3)**2
+            self._omega = omega
+            M = transformation_matrix_to_Hessian(P1,P2,P3,omega)
+            self._trafo = M
+            P = E.random_point()
+            assert P.order() != 3 and P.order() != 1
+            [X,Y,Z] = M * vector(P)
+            d =  (X**3 + Y**3 + Z**3)/(3*X*Y*Z)
+            self._d = d
+            self._a = self.__base_ring.one()
+
+        PP = projective_space.ProjectiveSpace(2, K, names='xyz')
+        x, y, z = PP.coordinate_ring().gens()
+        F = a*x**3 + y**3 + z**3 - 3*d*x*y*z
+        self._equation = F
+        plane_curve.ProjectivePlaneCurve.__init__(self, PP, F)
+
+    def _repr_(self):
+        """
+        String representation.
+        """
+        s = "Elliptic Curve in Hessian form defined by "
+        s += "%s" % self._equation
+        s += " over %s" % self.base_ring()
+        return s
+
+    def add(self, P, Q):
+        r"""
+        Compute the sum of two points P, Q on the Hessian curve self.
+        """
+        [x1,y1,z1] = P
+        [x2,y2,z2] = Q
+        x3 = x1**2*y2*z2 - x2**2*y1*z1
+        y3 = z1**2*x2*y2 - z2**2*x1*y1
+        z3 = y1**2*x2*z2 - y2**2*x1*z1
+        return self.point([x3,y3,z3])
+
+    def double(self, P):
+        r"""
+        Compute 2*P for a point P on self.
+
+        """
+        [x1,y1,z1] = P
+        x3 = (z1**3 - y1**3)*x1
+        y3 = (y1**3 - self._a*x1**3)*z1
+        z3 = (self._a*x1**3 - z1**3)*y1
+        return self.point([x3,y3,z3])
+
+    def negate(self, P):
+        [x1,y1,z1] = P
+        return self.point([x1,z1,y1])
+
+    def map_point(self, P):
+        r"""
+        Map point from the "base" elliptic curve to the curve in Hessian form.
+
+        NOTE: This only makes sense if self was created from an elliptic curve
+        in Weierstrass form.
+        """
+        if not self._trafo:
+            raise NotImplementedError
+
+        M = self._trafo
+        x,y,z = M*vector(P)
+        return self(x,y,z)
+
+    def j_invariant(self):
+        d = self._d
+        a = self._a
+        j = (3*d*(8+d**3)/(a*(d**3-a)))**3
+        return j
+
+
+
+class HessianKummerLine(SageObject):
+    r"""
+    The Kummer line of an elliptic curve in Hessian form.
+
+    EXAMPLES::
+
+        sage: Fp = FiniteField(13)
+        sage: H = EllipticCurveHessianForm(Fp(1),Fp(3))
+        sage: HK = HessianKummerLine(H); HK
+        Kummer Line of Elliptic Curve in Hessian form defined by 3*x^3 + y^3 - 3*x*y*z + z^3 over Finite Field of size 13
+    """
+
+    def __init__(self, curve):
+        r"""
+        Constructor for a Kummer line from an elliptic curve in Hessian form.
+        """
+        self._curve = curve
+        self._base_ring = curve.base_ring()
+        self._a = curve._a
+        self._d = curve._d
+        self._isogeny_neighbour = None
+
+    def __repr__(self):
+        r"""
+        String representation of the Kummer line.
+        """
+        return f"Kummer Line of {self._curve}"
+
+    def __call__(self, coords):
+        r"""
+        Create a Kummer point from the coordinates.
+        """
+        return HessianKummerLinePoint(self, coords)
+
+    def _special_isogeny_neighbour(self):
+        """
+        Compute the Kummer line of a (special) 3-isogenous neighbour
+
+        This concerns the 3-isogeny H -> H' with kernel <(0: 1 : omega)>.
+        """
+        if self._isogeny_neighbour:
+            return self._isogeny_neighbour
+
+        a1 = self._d**3 - self._a
+        d1 = self._d
+
+        E1 = EllipticCurveHessianForm(d1, a=a1)
+        self._isogeny_neighbour = HessianKummerLine(E1)
+        self._a1 = a1
+        self._d1 = d1
+
+        return self._isogeny_neighbour
+
+
+class HessianKummerLinePoint(SageObject):
+    r"""
+    Class for representing points on the Kummer line of
+    an elliptic curve in Hessian form.
+
+    EXAMPLES:
+
+    We create a HessianKummerLine from a given elliptic curve (with full 3-torsion)::
+
+        sage: Fp = FiniteField(31)
+        sage: E = EllipticCurve(Fp,[9,13])
+        sage: H = EllipticCurveHessianForm(E); H
+        Elliptic Curve in Hessian form defined by x^3
+         + y^3 - 12*x*y*z + z^3 over Finite Field of size 31
+        sage: HK = HessianKummerLine(H); HK
+        Kummer Line of Elliptic Curve in Hessian form defined by x^3 + y^3 - 12*x*y*z + z^3 over Finite Field of size 31
+
+    We can create points on the Kummer line by directly passing Kummer coordinates
+    (it is not tested if there exists a rational lift), or by passing points from
+    the elliptic curve::
+
+        sage: P = H([2,2,1]); P
+        (2 : 2 : 1)
+        sage: Q = HK(P); Q
+        (2 : 3)
+        sage: Q == HK([2,3])
+        True
+
+    We test the arithmetic. Currently, differential addition, doubling
+    and tripling are implemented::
+
+        sage: P1 = H([16,1,1])
+        sage: P2 = H([24,7,1])
+        sage: P2m = H.negate(P2)
+        sage: P3 = H.add(P1, P2m); P3
+        (8 : 26 : 1)
+        sage: Q1 = HK(P1)
+        sage: Q2 = HK(P2)
+        sage: Q3 = HK(P3)
+        sage: Q4 = Q1.xADD(Q2,Q3); Q4
+        (18 : 22)
+        sage: Q4 == HK(H.add(P1,P2))
+        True
+        sage: Q1.xDBL() == HK(H.double(P1))
+        True
+        sage: H.add(H.double(P1), P1)
+        sage: T = Q1.xTRPL(); T
+        (25 : 7)
+        sage: T == HK(H.add(H.double(P1),P1))
+        True
+    """
+
+    def __init__(self, parent, coords):
+        r"""
+        Constructs the point P = (x : y + z) on the Kummer line `parent`
+        on input a point (x : y : z) on the Hessian curve.
+
+        Alternatively, the input can directly be a tuple (x, u) representing a curve on the Kummer line.
+        """
+        K = coords[0].base_ring()
+        self.__base_ring = K
+
+        self._parent = parent
+
+        if len(coords) == 3:
+            self._x = coords[0]
+            self._u = coords[1] + coords[2]
+
+        if len(coords) == 2:
+            self._x = coords[0]
+            self._u = coords[1]
+
+
+    def _repr_(self):
+        """
+        String representation.
+        """
+        s = "(%s " % self._x
+        s += ": %s)" % self._u
+        return s
+
+    def __eq__(self,other):
+        x1, u1 = self._x, self._u
+        x2, u2 = other._x, other._u
+        return x2*u1 == x1*u2
+
+    def xADD(self, Q, PQ):
+        r"""
+        Compute the sum of two points P, Q on a the Hessian Kummer Line.
+        PQ are the Kummer coordinates of P-Q
+
+        COST: 15 M (+ 1 M_a + 5 M_d)
+        """
+        a = self._parent._a
+        d = self._parent._d
+
+        x1,u1 = self._x, self._u
+        x2,u2 = Q._x, Q._u
+        x3,u3 = PQ._x, PQ._u
+
+        x1x2 = x1*x2
+        x1u2 = x1*u2
+        x2u1 = x2*u1
+        u1u2 = u1*u2
+        # 4 M
+        ax1x2 = a*x1x2
+        # 1 M_a
+        dx1x2 = d*x1x2
+        dx1u2 = d*x1u2
+        dx2u1 = d*x2u1
+        du1u2 = d*u1u2
+        term = (3*d**2-2)*x1x2
+        # 5 M_d
+        u34 =  - (ax1x2+ax1x2) * (dx1x2 + x1u2 + x2u1) - u1u2*(term + x1x2  + x1x2 + (dx1u2 + dx2u1) + u1u2)
+        # 2 M
+        x3p  =  - x1x2 * (ax1x2-du1u2) + x2u1 * (dx2u1+u1u2) + x1u2 * (dx1u2+u1u2)
+        # 3 M
+        u4 = u34*x3 - u3*x3p
+        x4 = x3 * x3p
+        # 3 M
+
+        return self._parent((x4,u4))
+
+    def xDBL(self):
+        """
+        Double the point.
+
+        COST: 4M + 3S + 1M_a + 1M_d
+        """
+        a,d = self._parent._a, self._parent._d
+        x1,u1 = self._x, self._u
+        x12 = x1*x1 # S
+        x13 = x1*x12 # M
+        ax13 = a*x13 # a
+        dx1 = d*x1  # d
+        u12 = u1*u1 # S
+        u14 = u12*u12 # S
+
+        u2 = -  ax13*(3*dx1 + 4*u1) - u14 # 1 M
+        x2 = x1 * (-ax13 + (3*dx1 + u1 + u1)*u12) # 2M
+
+        return self._parent((x2,u2))
+
+    def _cubing(self):
+        """
+        On input (x, u=y+z), compute (x^3, y^3 + z^3).
+
+        COST: 2 S + 2 M + 1 M_a + 2 M_d
+        """
+        a,d = self._parent._a, self._parent._d
+        x,u = self._x, self._u
+
+        x2 = x * x # 1 S
+        u2 = u * u # 1 S
+
+        ax2 = a * x2 # 1 M_a
+        dx = d * x # 1 M_d
+        du2 = d * u2 # 1 M_d
+
+        x_im = ax2 * (u + dx) # 1 M
+        u_im = u * (du2 - ax2) # 1 M
+
+        #Note: technically, the point is no longer on the same Kummer line
+        return self._parent((x_im, u_im))
+
+    def _DFT(self):
+        """
+        Given x, u, output x + u, 2*x - u
+
+        COST: 0
+        """
+        u, x = self._u, self._x
+        x_im = x + u
+        u_im = x + x - u
+
+        #Note: technically, the point is no longer on the same Kummer line
+        return self._parent((x_im, u_im))
+
+    def _scale(self, s, t):
+        """
+            Given `self = (x : u)`, output `(s * x : t * u)`
+
+            COST: 2 M
+        """
+        u, x = self._u, self._x
+        x_im = s * x # 1 M
+        u_im = t * u # 1 M
+
+        #Note: technically, the point is no longer on the same Kummer line
+        return self._parent((x_im, u_im))
+
+    def evaluate_phi_1(self):
+        """
+            COST: 2M + 2S + 1 M_a + 3 M_d
+        """
+        a,d = self._parent._a, self._parent._d
+
+        P = self._cubing() # 2 S + 2 M + 1 M_a + 2 M_d
+        P = P._DFT() # 0
+        P = P._scale(1,d) # 1 M_d #double check, if need multiplication by 3 here!
+
+        new_HK = P._parent._special_isogeny_neighbour()
+        return new_HK([P._x, P._u])
+
+
+    def xTRPL(self):
+        """
+        Triple the point.
+
+        NOTE: Tripling as computed as a composition of 3-isogenies.
+
+        COST: 4M + 4S + 2 M_a + 6 M_d
+        """
+        Q = self.evaluate_phi_1()
+        P = Q.evaluate_phi_1()
+
+        return P
