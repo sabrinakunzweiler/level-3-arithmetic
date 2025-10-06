@@ -67,13 +67,14 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: omega = (x^2+x+1).roots()[0][0]
 
         sage: E = EllipticCurve(Fp, [1,0])
-        sage: H = EllipticCurveHessianForm(E); H
+        sage: H = EllipticCurveHessianForm(E); H # random
         Elliptic Curve in Hessian form defined by x^3 + y^3 + (-z2 + 30)*x*y*z + z^3 over Finite Field in z2 of size 107^2
     
     We can check that the curves are isomorphic, 
     using the formula for the j-invariant on Hessian curves::
 
         sage: H.j_invariant() == E.j_invariant()
+        True
 
     We can map the points from E to H::
 
@@ -116,8 +117,13 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             self._omega = omega
             M = transformation_matrix_to_Hessian(P1,P2,P3,omega)
             self._trafo = M
-            P = E.random_point()
-            assert P.order() != 3 and P.order() != 1
+            #need to check that there exists a point of order >3.
+            if E.order() == 9:
+                raise ValueError()
+            while True:
+                P = E.random_point()
+                if P.order() != 3 and P.order() != 1:
+                    break
             [X,Y,Z] = M * vector(P)
             d =  (X**3 + Y**3 + Z**3)/(3*X*Y*Z)
             self._d = d
@@ -184,6 +190,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         except:
             a1 = self._d**3 - self._a
             d1 = self._d
+            omega = self._omega
 
             E1 = EllipticCurveHessianForm(d1, a=a1, omega=omega)
             self._isogeny_neighbour = E1
@@ -211,7 +218,7 @@ class EllipticCurveHessianPoint(SageObject):
 
         sage: P1 = E([27,16])
         sage: Q1 = H.map_point(P1); Q1
-        (26 : 0: 11)
+        (26 : 0 : 11)
 
     Or we can create points directly by passing coordinates::
 
@@ -225,7 +232,7 @@ class EllipticCurveHessianPoint(SageObject):
 
         sage: P2 = E([22,9])
         sage: Q2 = H.map_point(P2); Q2
-        (33 : 16: 15)
+        (27 : 5 : 32)
         sage: Q3 = Q1.add(Q2)
         sage: Q3 == H.map_point(P1 + P2)
         True
@@ -244,9 +251,8 @@ class EllipticCurveHessianPoint(SageObject):
 
         Alternatively, the input can directly be a tuple (x, u) representing a curve on the Kummer line.
         """
-        K = coords[0].base_ring()
+        K = parent._base_ring
         self.__base_ring = K
-
         self._parent = parent
 
         if len(coords) == 2: #allow affine input
@@ -258,9 +264,9 @@ class EllipticCurveHessianPoint(SageObject):
         else:
             self._check = False
 
-        self._x = coords[0]
-        self._y = coords[1]
-        self._z = coords[2]
+        self._x = K(coords[0])
+        self._y = K(coords[1])
+        self._z = K(coords[2])
 
     def _repr_(self):
         """
@@ -268,7 +274,7 @@ class EllipticCurveHessianPoint(SageObject):
         """
         s = "(%s " % self._x
         s += ": %s" % self._y
-        s += ": %s)" % self._z
+        s += " : %s)" % self._z
         if not self._check:
             s += "  auxiliary point"
         return s
@@ -441,9 +447,9 @@ class HessianKummerLine(SageObject):
 
         This concerns the 3-isogeny H -> H' with kernel <(0: 1 : omega)>.
         """
-        try:
+        if self._isogeny_neighbour:
             return self._isogeny_neighbour
-        except:
+        else:
             a1 = self._d**3 - self._a
             d1 = self._d
 
@@ -466,9 +472,10 @@ class HessianKummerLinePoint(SageObject):
 
         sage: Fp = FiniteField(31)
         sage: E = EllipticCurve(Fp,[9,13])
-        sage: H = EllipticCurveHessianForm(E); H
-        Elliptic Curve in Hessian form defined by x^3
-         + y^3 - 12*x*y*z + z^3 over Finite Field of size 31
+        sage: H = EllipticCurveHessianForm(Fp(4)); H
+        Elliptic Curve in Hessian form defined by x^3 + y^3 - 12*x*y*z + z^3 over Finite Field of size 31
+        sage: H.j_invariant() == E.j_invariant()
+        True
         sage: HK = HessianKummerLine(H); HK
         Kummer Line of Elliptic Curve in Hessian form defined by x^3 + y^3 - 12*x*y*z + z^3 over Finite Field of size 31
 
@@ -488,22 +495,21 @@ class HessianKummerLinePoint(SageObject):
 
         sage: P1 = H([16,1,1])
         sage: P2 = H([24,7,1])
-        sage: P2m = H.negate(P2)
-        sage: P3 = H.add(P1, P2m); P3
-        (8 : 26 : 1)
+        sage: P2m = P2.negate()
+        sage: P3 = P1.add(P2m); P3
+        (7 : 15 : 28)
         sage: Q1 = HK(P1)
         sage: Q2 = HK(P2)
         sage: Q3 = HK(P3)
         sage: Q4 = Q1.xADD(Q2,Q3); Q4
-        (18 : 22)
-        sage: Q4 == HK(H.add(P1,P2))
+        (8 : 27)
+        sage: Q4 == HK(P1.add(P2))
         True
-        sage: Q1.xDBL() == HK(H.double(P1))
+        sage: Q1.xDBL() == HK(P1.double())
         True
-        sage: H.add(H.double(P1), P1)
         sage: T = Q1.xTRPL(); T
         (25 : 7)
-        sage: T == HK(H.add(H.double(P1),P1))
+        sage: T == HK(P1.double().add(P1))
         True
     """
 
@@ -514,18 +520,20 @@ class HessianKummerLinePoint(SageObject):
 
         Alternatively, the input can directly be a tuple (x, u) representing a curve on the Kummer line.
         """
-        K = coords[0].base_ring()
+        if isinstance(coords, EllipticCurveHessianPoint):
+            coords = coords.xyz()
+        K = parent._base_ring
         self.__base_ring = K
 
         self._parent = parent
 
         if len(coords) == 3:
-            self._x = coords[0]
-            self._u = coords[1] + coords[2]
+            self._x = K(coords[0])
+            self._u = K(coords[1] + coords[2])
 
         if len(coords) == 2:
-            self._x = coords[0]
-            self._u = coords[1]
+            self._x = K(coords[0])
+            self._u = K(coords[1])
 
 
     def _repr_(self):
