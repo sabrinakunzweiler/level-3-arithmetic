@@ -15,6 +15,8 @@ import sage.schemes.curves.projective_curve as plane_curve
 from sage.schemes.elliptic_curves.ell_generic import EllipticCurve_generic
 from sage.structure.element import RingElement
 from sage.structure.sage_object import SageObject
+from sage.matrix.constructor import Matrix
+from sage.modules.free_module_element import vector
 
 
 #auxiliary function
@@ -84,7 +86,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: Q2 = H.map_point(P2)
     """
 
-    def __init__(self, arg, a=1, omega=None):
+    def __init__(self, arg, a=1, omega=None, basis=None):
         r"""
         Construct an elliptic curve in (twisted) Hessian form
         a*X^3 + Y^3 + Z^3 = 3*d*X*Y*Z
@@ -111,7 +113,10 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             self._elliptic_curve = E
             K = E.base_ring()
             self.__base_ring = K
-            [P1,P2] = E.torsion_basis(3)
+            if basis:
+                [P1,P2] = basis
+            else:
+                [P1,P2] = E.torsion_basis(3)
             P3 = P1 + P2
             omega = P1.weil_pairing(P2, 3)**2
             self._omega = omega
@@ -198,6 +203,13 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             self._d1 = d1
 
             return self._isogeny_neighbour
+
+    def kummer(self):
+        """
+        Return the Kummer line of self.
+        """
+        return HessianKummerLine(self)
+
 
 class EllipticCurveHessianPoint(SageObject):
     r"""
@@ -544,9 +556,12 @@ class HessianKummerLinePoint(SageObject):
         s += ": %s)" % self._u
         return s
 
+    def xu(self):
+        return self._x, self._u
+
     def __eq__(self,other):
-        x1, u1 = self._x, self._u
-        x2, u2 = other._x, other._u
+        x1, u1 = self.xu()
+        x2, u2 = other.xu()
         return x2*u1 == x1*u2
 
     def xADD(self, Q, PQ):
