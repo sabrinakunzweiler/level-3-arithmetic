@@ -83,7 +83,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: Q2 = H.map_point(P2)
     """
 
-    def __init__(self, arg, a=1):
+    def __init__(self, arg, a=1, omega=None):
         r"""
         Construct an elliptic curve in (twisted) Hessian form
         a*X^3 + Y^3 + Z^3 = 3*d*X*Y*Z
@@ -103,6 +103,8 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             self.__base_ring = K
             self._d = arg
             self._a = a
+            if omega:
+                self._omega = omega
         elif isinstance(arg, EllipticCurve_generic):
             E = arg
             self._elliptic_curve = E
@@ -136,11 +138,20 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         s += " over %s" % self.base_ring()
         return s
 
-    def __call__(self, coords):
+    def _set_omega(self, omega):
+        """
+        A canonical choice of third root of unity is set.
+
+        This is necessary for some applications, such as cubing.
+        It is often already set in the beginning.
+        """
+        self._omega = omega
+
+    def __call__(self, coords, check=True):
         r"""
         Create a point on self from the coordinates.
         """
-        return EllipticCurveHessianPoint(self, coords)
+        return EllipticCurveHessianPoint(self, coords, check=check)
 
     def map_point(self, P):
         r"""
@@ -162,6 +173,25 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         j = (3*d*(8+d**3)/(a*(d**3-a)))**3
         return j
 
+    def _special_isogeny_neighbour(self):
+        """
+        Compute the Kummer line of a (special) 3-isogenous neighbour
+
+        This concerns the 3-isogeny H -> H' with kernel <(0: 1 : omega)>.
+        """
+        try:
+            return self._isogeny_neighbour
+        except:
+            a1 = self._d**3 - self._a
+            d1 = self._d
+
+            E1 = EllipticCurveHessianForm(d1, a=a1, omega=omega)
+            self._isogeny_neighbour = E1
+            self._a1 = a1
+            self._d1 = d1
+
+            return self._isogeny_neighbour
+
 class EllipticCurveHessianPoint(SageObject):
     r"""
     Class for representing points on an elliptic curve in
@@ -181,7 +211,7 @@ class EllipticCurveHessianPoint(SageObject):
 
         sage: P1 = E([27,16])
         sage: Q1 = H.map_point(P1); Q1
-        (10 : 0: 27)
+        (26 : 0: 11)
 
     Or we can create points directly by passing coordinates::
 
@@ -202,9 +232,12 @@ class EllipticCurveHessianPoint(SageObject):
         sage: Q4 = Q1.double()
         sage: Q4 == H.map_point(2*P1)
         True
+        sage: Q5 = Q1.triple()
+        sage: Q5 == H.map_point(3*P1)
+        True
     """
 
-    def __init__(self, parent, coords):
+    def __init__(self, parent, coords, check=True):
         r"""
         Constructs the point P = (x : y : z) on an elliptic curve
         in  Hessian form.
@@ -219,7 +252,11 @@ class EllipticCurveHessianPoint(SageObject):
         if len(coords) == 2: #allow affine input
             coords.append(K.one())
 
-        assert parent._equation(coords) == 0
+        if check:
+            assert parent._equation(coords) == 0
+            self._check = True
+        else:
+            self._check = False
 
         self._x = coords[0]
         self._y = coords[1]
@@ -232,7 +269,8 @@ class EllipticCurveHessianPoint(SageObject):
         s = "(%s " % self._x
         s += ": %s" % self._y
         s += ": %s)" % self._z
-
+        if not self._check:
+            s += "  auxiliary point"
         return s
 
     def xyz(self):
@@ -283,15 +321,84 @@ class EllipticCurveHessianPoint(SageObject):
         x1,y1,z1 = self.xyz()
         return self._parent([x1,z1,y1])
 
+    def _cubing(self):
+        """
+        On input `self = (x : y : z)`, output `(x^3 : y^3 : z^3)`.
+
+        COST: 3 S + 3 M
+        """
+        x, y, z = self.xyz()
+        x_im = x**3
+        y_im = y**3
+        z_im = z**3
+
+        return self._parent([x_im,y_im,z_im], check=False)
+
+    def _DFT(self):
+        """
+        Compute the DFT transform of the point.
+
+        TODO: adapt to twisted case
+
+        COST: 0
+        """
+        x, y, z = self.xyz()
+        try:
+            omega = self._parent._omega
+        except:
+            K = self._base_ring
+            R = PolynomialRing(K,1)
+            x = R.gen()
+            try:
+                omega = (x^2+x+1).roots(multiplicties=False)[0]
+                self._parent.set_omega(omega)
+                print("The cube root of unity is set to omega = ", omega)
+            except:
+                raise ValueError("The base field does not contain a cube root of unity.")
+        x_im = x + y + z
+        y_im = x + omega*y + omega**2*z
+        z_im = x + omega**2*y + omega*z
+
+        return self._parent([x_im, y_im, z_im], check=False)
+
+    def _scale(self, s, t):
+        """
+            Given `self = (x : y : z)`, output `(s * x : t * y : t * z)`
+
+            COST: 3 M
+        """
+        x, y, z = self.xyz()
+        x_im = s * x # 1 M
+        y_im = t * y # 1 M
+        z_im = t * z # 1 M
+
+        return self._parent([x_im, y_im, z_im], check=False)
+
+    def evaluate_phi_1(self):
+        """
+            COST: 6M + 3S + 2 M_d
+        """
+        a,d = self._parent._a, self._parent._d
+
+        P = self._cubing() # 3 S + 3 M
+        P = P._DFT() # 0
+        P = P._scale(1,d) # 2 M_d
+
+        Hp = P._parent._special_isogeny_neighbour()
+        return Hp([P._x, P._y, P._z])
+
     def triple(self):
         """
         Compute `3*self`.
 
-        TODO
+        NOTE: Tripling as computed as a composition of 3-isogenies.
+
+        COST: 12M + 6S + 4 M_d
         """
-        pass
+        Q = self.evaluate_phi_1()
+        P = Q.evaluate_phi_1()
 
-
+        return P
 
 
 class HessianKummerLine(SageObject):
@@ -334,18 +441,18 @@ class HessianKummerLine(SageObject):
 
         This concerns the 3-isogeny H -> H' with kernel <(0: 1 : omega)>.
         """
-        if self._isogeny_neighbour:
+        try:
             return self._isogeny_neighbour
+        except:
+            a1 = self._d**3 - self._a
+            d1 = self._d
 
-        a1 = self._d**3 - self._a
-        d1 = self._d
+            E1 = EllipticCurveHessianForm(d1, a=a1)
+            self._isogeny_neighbour = HessianKummerLine(E1)
+            self._a1 = a1
+            self._d1 = d1
 
-        E1 = EllipticCurveHessianForm(d1, a=a1)
-        self._isogeny_neighbour = HessianKummerLine(E1)
-        self._a1 = a1
-        self._d1 = d1
-
-        return self._isogeny_neighbour
+            return self._isogeny_neighbour
 
 
 class HessianKummerLinePoint(SageObject):
