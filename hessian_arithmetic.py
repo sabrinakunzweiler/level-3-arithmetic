@@ -181,7 +181,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
     def j_invariant(self):
         d = self._d
         a = self._a
-        j = (3*d*(8+d**3)/(a*(d**3-a)))**3
+        j = (3*d*(8*a+d**3)/(d**3+a))**3/a
         return j
 
     def _special_isogeny_neighbour(self):
@@ -210,6 +210,57 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         """
         return HessianKummerLine(self)
 
+    def untwist(self):
+        """
+        Return the untwisted Hessian form of `self` if it exists.
+
+        The untwisted form is X^3 + Y^3 + Z^3 = 3d*XYZ.
+
+
+        EXAMPLES::
+            sage: Fp = FiniteField(19)
+            sage: E1 = EllipticCurveHessianForm(Fp(2),a=Fp(3))
+            sage: E2 = E1.untwist()
+            Traceback (most recent call last)
+            ...
+            ValueError: The curve does not admit a model in untwisted form.
+
+            sage: E1 = EllipticCurveHessianForm(Fp(2),a=Fp(7))
+            sage: E2 = E1.untwist(); E2
+            Elliptic Curve in Hessian form defined by x^3 + y^3 + 8*x*y*z + z^3 over Finite Field of size 19
+            sage: E1.j_invariant() == E2.j_invariant()
+            True
+        """
+        a,d = self._a, self._d
+        if a == 1:
+            return self
+        try:
+            alpha = a.nth_root(3)
+        except:
+            raise ValueError("The curve does not admit a model in untwisted form.")
+
+        return EllipticCurveHessianForm(d/alpha)
+
+    def twisted_normalform(self):
+        """
+        Return the twisted normal form of `self`.
+
+        The twisted normal form is a*X^3 + Y^3 + Z^3 = 3*XYZ.
+
+
+        EXAMPLES::
+            sage: Fp = FiniteField(19)
+            sage: E1 = EllipticCurveHessianForm(Fp(2),a=Fp(3))
+            sage: E2 = E1.twisted_normalform(); E2
+            sage: E1.j_invariant() == E2.j_invariant()
+            True
+        """
+        a,d = self._a, self._d
+        if d == 1:
+            return self
+        else:
+            K = self._base_ring
+            return EllipticCurveHessianForm(K.one(), a=a/d**3)
 
 class EllipticCurveHessianPoint(SageObject):
     r"""
