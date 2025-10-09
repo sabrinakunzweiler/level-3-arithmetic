@@ -181,7 +181,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
     def j_invariant(self):
         d = self._d
         a = self._a
-        j = (3*d*(8*a+d**3)/(d**3+a))**3/a
+        j = (3*d*(8*a+d**3)/(d**3-a))**3/a
         return j
 
     def _special_isogeny_neighbour(self):
