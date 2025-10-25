@@ -105,7 +105,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             K = d.parent()
             self.__base_ring = K
             self._d = arg
-            self._a = a
+            self._a = K(a)
             if omega:
                 self._omega = omega
         elif isinstance(arg, EllipticCurve_generic):
@@ -138,6 +138,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         x, y, z = PP.coordinate_ring().gens()
         F = a*x**3 + y**3 + z**3 - 3*d*x*y*z
         self._equation = F
+        self._neutral_element = EllipticCurveHessianPoint(self, [K.zero(),-K.one(),K.one()], check=check)
         plane_curve.ProjectivePlaneCurve.__init__(self, PP, F)
 
     def _repr_(self):
@@ -163,6 +164,12 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         Create a point on self from the coordinates.
         """
         return EllipticCurveHessianPoint(self, coords, check=check)
+
+    def zero(self):
+        """
+        Return the neutral element `(0:-1:1)` of the Hessian curve.
+        """
+        return self._neutral_element
 
     def map_point(self, P):
         r"""
