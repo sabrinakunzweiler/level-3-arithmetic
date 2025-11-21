@@ -10,7 +10,7 @@
 
 """
 
-from hessian_arithmetic import *
+from hessian_arithmetic_dim1 import *
 
 
 class ThreeIsogenyKummer(SageObject):

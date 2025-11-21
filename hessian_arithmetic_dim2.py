@@ -4,7 +4,8 @@ Abelian surfaces in Hessian form.
 
 from sage.schemes.generic.morphism import SchemeMorphism
 from sage.structure.element import AdditiveGroupElement
-import sage.schemes.projective.projective_space as projective_space
+#import sage.schemes.projective.projective_space as projective_space
+from sage.schemes.projective.projective_space import ProjectiveSpace
 from sage.schemes.projective.projective_point import SchemeMorphism_point_projective_ring
 from sage.schemes.elliptic_curves.ell_generic import EllipticCurve_generic
 from sage.structure.element import RingElement
@@ -13,12 +14,9 @@ from sage.matrix.constructor import Matrix
 from sage.modules.free_module_element import vector
 from sage.schemes.projective.projective_subscheme import AlgebraicScheme_subscheme_projective
 
-from hessian_arithmetic_dim2 import EllipticCurveHessianForm
+from hessian_arithmetic_dim1 import EllipticCurveHessianForm
 
 
-#auxiliary function
-def transformation_matrix_to_Hessian(P):
-    pass
 
 class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
     r"""
@@ -28,7 +26,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
     """
 
-    def __init__(self, args, omega=None, OO=None):
+    def __init__(self, args, omega=None, OO=None, check=True):
         r"""
         Construct an abelian surface in Hessian form
 
@@ -38,8 +36,25 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         - either args = [d,h] with
             - ``d`` -- tuple containing the coefficients (d0 : ... : d4)
             - ``h`` -- tuple containing the coefficients (h0 : ... : h4)
+            NOTE: It is not checked that the input defines a p.p. abelian surface.
         - or args =[E1,E2] where E1 and E2 are elliptic curves in Hessian form
 
+        EXAMPLES::
+
+            sage: p = 4*3^3 - 1
+            sage: Fp = GF(p^2)
+            sage: R.<x> = Fp[]
+            sage: omega = (x^2+x+1).roots()[0][0]
+
+        We construct a product surface in Hessian form::
+
+            sage: E0 = EllipticCurve(Fp, [1,0])
+            sage: H0 = EllipticCurveHessianForm(E0, omega=omega)
+            sage: P0 = E0.lift_x(2)
+            sage: E1 = E0.isogeny(P0).codomain()
+            sage: H1 = EllipticCurveHessianForm(E1, omega=omega)
+            sage: A = AbelianSurfaceHessianForm([H0,H1]); A
+            Abelian surface in Hessian form with coefficients d = (30*z2 + 63, 71*z2 + 27, 71*z2 + 27, 1, 1), h =  (0, 0, 0, 106, 1) over Finite Field in z2 of size 107^2
         """
         assert len(args) == 2
 
@@ -47,25 +62,30 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         if isinstance(args[0], EllipticCurveHessianForm):
             self._reducible = True
             E1, E2 = args
+            self._ellitpic_curves = (E1, E2)
             K = E1._base_ring
             assert E1._a == K.one()
             assert E2._a == K.one()
             dE1 = E1._d
             dE2 = E2._d
-            d0,d1,d2,d3,d4 = K.one(), dE1, dE2, dE1*dE2, dE1*dE2
-            h0,h1,h2,h3,h4 = K.zero(), K.zero(), K.zero(), -K.one(), K.one()
+            self._d = dE1*dE2, dE1, dE2, 1, 1
+            self._h = K.zero(), K.zero(), K.zero(), -K.one(), K.one()
             OO = [K.zero(),K.zero(),K.zero(),K.zero(),K.one(),-K.one(),K.zero(),-K.one(),K.one()]
+            try:
+                omega = E1._omega
+            except:
+                pass
         else:
             self._reducible = False #TODO: this is in general not correct!
-            self._d = d
-            d0,d1,d2,d3,d4 = d
-            self._h = h
-            h0,h1,h2,h3,h4 = h
-            assert d0*h0 + d1*h1 + d2*h2 + d3*h3 + d4*h4 == 0
-            K = d[0].base_ring()
+            self._d = args[0]
+            self._h = args[1]
+            K = self._d[0].parent()
+        d0,d1,d2,d3,d4 = self._d
+        h0,h1,h2,h3,h4 = self._h
+        #assert d0*h0 + d1*h1 + d2*h2 + d3*h3 + d4*h4 == 0 #TODO: double-check this condition!
         self._base_ring = K
-        P8 = ProjectiveSpace(8, K, 'X00,X01,X02,X10,X11,X12,X20,X21,X22')
-        P8.inject_variables()
+        P8, vars = ProjectiveSpace(8, K, names="X00,X01,X02,X10,X11,X12,X20,X21,X22").objgens()
+        X00,X01,X02,X10,X11,X12,X20,X21,X22 = vars
         cubics = [
         d1 * (X00**3 + X01**3 + X02**3 + X10**3 + X11**3 + X12**3 + X20**3 + X21**3 + X22**3) - 3*d0 * (X00*X01*X02 + X10*X11*X12 + X20*X21*X22),
         d2 * (X00**3 + X01**3 + X02**3 + X10**3 + X11**3 + X12**3 + X20**3 + X21**3 + X22**3) - 3*d0 * (X00*X10*X20 + X01*X11*X21 + X02*X12*X22),
@@ -74,19 +94,20 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         ]
         self._cubics = cubics
         quadratics = [
-        h0*X00**2 + h1*X01*X02 + h2*X10*X20 + h4*X12*X21 + h3*X11*X22,
-        h1*X00*X01 + h0*X02**2 + h4*X11*X20 + h3*X10*X21 + h2*X12*X22,
-        h0*X01**2 + h1*X00*X02 + h3*X12*X20 + h2*X11*X21 + h4*X10*X22,
-        h2*X00*X10 + h4*X02*X11 + h3*X01*X12 + h0*X20**2 + h1*X21*X22,
-        h4*X01*X10 + h3*X00*X11 + h2*X02*X12 + h1*X20*X21 + h0*X22**2,
-        h3*X02*X10 + h2*X01*X11 + h4*X00*X12 + h0*X21**2 + h1*X20*X22,
-        h0*X10**2 + h1*X11*X12 + h2*X00*X20 + h3*X02*X21 + h4*X01*X22,
-        h1*X10*X11 + h0*X12**2 + h3*X01*X20 + h4*X00*X21 + h2*X02*X22,
-        h0*X11**2 + h1*X10*X12 + h4*X02*X20 + h2*X01*X21 + h3*X00*X22,
+            h0*X00**2 + h1*X01*X02 + h2*X10*X20 + h4*X12*X21 + h3*X11*X22,
+            h1*X00*X01 + h0*X02**2 + h4*X11*X20 + h3*X10*X21 + h2*X12*X22,
+            h0*X01**2 + h1*X00*X02 + h3*X12*X20 + h2*X11*X21 + h4*X10*X22,
+            h2*X00*X10 + h4*X02*X11 + h3*X01*X12 + h0*X20**2 + h1*X21*X22,
+            h4*X01*X10 + h3*X00*X11 + h2*X02*X12 + h1*X20*X21 + h0*X22**2,
+            h3*X02*X10 + h2*X01*X11 + h4*X00*X12 + h0*X21**2 + h1*X20*X22,
+            h0*X10**2 + h1*X11*X12 + h2*X00*X20 + h3*X02*X21 + h4*X01*X22,
+            h1*X10*X11 + h0*X12**2 + h3*X01*X20 + h4*X00*X21 + h2*X02*X22,
+            h0*X11**2 + h1*X10*X12 + h4*X02*X20 + h2*X01*X21 + h3*X00*X22,
         ]
         self._quadratics = quadratics
-
         self._equations = cubics + quadratics
+        if omega:
+            self._omega = omega
 
         #need to set the neutral element
         if OO:
@@ -103,7 +124,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         """
         s = "Abelian surface in Hessian form with coefficients "
         s += "d = " + str(self._d)
-        s += " h =  " + str(self._h)
+        s += ", h =  " + str(self._h)
         s += " over " + str(self._base_ring)
         return s
 
@@ -131,7 +152,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         If coords consists of two elliptic curve points, the Segre embedding is computed.
         """
         if len(coords) == 2:
-            self._segre(*coords) # point on the product
+            coords = self._segre(*coords) # point on the product
         return AbelianSurfaceHessianPoint(self, coords, check=check)
 
     def zero(self):
@@ -155,6 +176,47 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         """
         return HessianEvenKummerSurface(self)
 
+    def canonical_isogeny(self, R1, R2):
+        """
+        Create the canonical (3,3)-isogeny with kernel 3*(R1,R2).
+        """
+        from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
+
+        self._phi = AbelianSurfaceHessianFormHom(self, [R1,R2], "isogeny")
+        return self._phi
+
+    def symplectic_transformation(self, a,b,c, second=False):
+        """
+        Compute the symplectic transformation which sends
+        The kernel defined by <Q1 + a*P1 + b*P2, Q2 + b*P1 + c*P2>
+        to canonical form (Q1',Q2').
+
+        In the second option, it is assumeed that the kernel is
+        <P1 + a*Q1 + b*Q2, P2 + b*Q1 + c*Q2>
+        """
+        from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
+        omega = self._omega
+
+        if not second:
+            scalars = (omega**(a+c), omega**c, omega**a, omega**(2*b), omega**b)
+
+        return AbelianSurfaceHessianFormHom(self, scalars, "scaling", check=True)
+
+    def DFT(self):
+        """
+        Compute the symplectic transformation defined by the DFT transform
+        """
+        from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
+
+        return AbelianSurfaceHessianFormHom(self, [], "DFT")
+
+    def negation(self):
+        """
+        Define the multiplication by -1 map on self.
+        """
+        from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
+
+        return AbelianSurfaceHessianFormHom(self, [], "negation")
 
 
 class AbelianSurfaceHessianPoint(SageObject):
@@ -212,6 +274,12 @@ class AbelianSurfaceHessianPoint(SageObject):
             s += "  auxiliary point"
         return s
 
+    def __getitem__(self, n):
+        """
+        Return the n'th coordinate of this point.
+        """
+        return self._coords[n]
+
     def coordinates(self):
         """
         Return coordinates as tuple.
@@ -222,7 +290,7 @@ class AbelianSurfaceHessianPoint(SageObject):
         """
         Check projective equality of points.
         """
-        P8 = self._parent._ambient_space
+        P8 = self._parent.ambient_space()
         P = P8(self._coords)
         Q = P8(other._coords)
         return P == Q
@@ -255,12 +323,13 @@ class AbelianSurfaceHessianPoint(SageObject):
         try:
             omega = self._parent._omega
         except:
-            K = self._base_ring
-            R = PolynomialRing(K,1)
+            K = self._parent._base_ring
+            R = PolynomialRing(K,"x")
             x = R.gen()
             try:
-                omega = (x**2+x+1).roots(multiplicties=False)[0]
-                self._parent.set_omega(omega)
+                f = x**2+x+1
+                omega = f.roots(multiplicities=False)[0]
+                self._parent._set_omega(omega)
                 print("The cube root of unity is set to omega = ", omega)
             except:
                 raise ValueError("The base field does not contain a cube root of unity.")
@@ -281,7 +350,7 @@ class AbelianSurfaceHessianPoint(SageObject):
             Given `self = (x00 : ... : x11)`, and a scaling vector
             (c0, ...,c4) output `(c0 * x00 : ... : c3 * x22)`
 
-            COST: 3 M
+            COST: 9 M
         """
         x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
         c0, c1, c2, c3, c4 = c
@@ -297,6 +366,7 @@ class AbelianSurfaceHessianPoint(SageObject):
 
         return self._parent([y0,y1,y2,y3,y4,y5,y6,y7,y8], check=False)
 
+
     def _compute_d(self):
         """
         Compute the domain coefficients d0, ..., d4 given a point on the surface.
@@ -310,10 +380,10 @@ class AbelianSurfaceHessianPoint(SageObject):
         x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
 
         d0 = x0**3 + x1**3 + x2**3 + x3**3 + x4**3 + x5**3 + x6**3 + x7**3 + x8**3
-        d1 = x0*x1*x2 + x3*x4*x5 + x6*x7*x8
-        d2 = x0*x3*x6 + x1*x4*x7 + x2*x5*x8
-        d3 = x0*x4*x8 + x1*x5*x6 + x2*x3*x7
-        d4 = x0*x5*x7 + x1*x3*x8 + x2*x4*x6
+        d1 = 3*(x0*x1*x2 + x3*x4*x5 + x6*x7*x8)
+        d2 = 3*(x0*x3*x6 + x1*x4*x7 + x2*x5*x8)
+        d3 = 3*(x0*x4*x8 + x1*x5*x6 + x2*x3*x7)
+        d4 = 3*(x0*x5*x7 + x1*x3*x8 + x2*x4*x6)
 
         assert d0 != 0 #is this the only assertion?
 
@@ -343,13 +413,24 @@ class AbelianSurfaceHessianPoint(SageObject):
             [x8**2, x6*x7, x2*x5, x0*x4, x1*x3]
         ])
 
-        return tuple(A.right_kernel().gen())
+        try:
+            return tuple(A.right_kernel().gen())
+        except:
+            print(A)
+            print(A.right_kernel())
+        return None
+
 
     def evaluate_phi(self):
         """
-            COST:
+            Evaluate the (3,3)-isogeny with kernel K_2 at a point.
         """
-        pass
+        try:
+            phi = self._phi
+        except:
+            raise ValueError("The 3-isogeny has not yet been created")
+        return phi(self)
+
 
     def triple(self):
         """
@@ -359,7 +440,66 @@ class AbelianSurfaceHessianPoint(SageObject):
 
         COST:
         """
-        pass
+        try:
+            phi = self._parent._phi
+        except:
+            raise ValueError("The 3-isogeny has not yet been created")
+        try:
+            phi_dual = phi._dual
+        except:
+            phi_dual = phi.dual() #phi dual can also be computed from phi
+
+        P = phi(self)
+        P = phi_dual(P)
+        return P
+
+    def _add_P1(self):
+        """
+        Add P1 to  `self`, where P1 is the 3-torsion point in the
+        canonical symplectic basis (P1,P2,Q1,Q2) of A[3].
+
+        Note: this corresponds to the action of the permutation
+        (0,1,2)(3,4,5)(6,7,8)
+        """
+        x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
+        parent = self._parent
+        return parent([x1,x2,x0,x4,x5,x3,x7,x8,x6])
+
+    def _add_P2(self):
+        """
+        Add P2 to  `self`, where P2 is the 3-torsion point in the
+        canonical symplectic basis (P1,P2,Q1,Q2) of A[3].
+
+        Note: this corresponds to the action of the permutation
+        (0,3,6)(1,4,7)(2,5,8)
+        """
+        x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
+        parent = self._parent
+        return parent([x3,x4,x5,x6,x7,x8,x0,x1,x2])
+
+    def _add_Q1(self):
+        """
+        Add Q1 to  `self`, where Q1 is the 3-torsion point in the
+        canonical symplectic basis (P1,P2,Q1,Q2) of A[3].
+
+        Note: this corresponds to scaling by third roots of unity
+        """
+        x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
+        parent = self._parent
+        omega = parent._omega
+        return parent([x0,omega*x1, omega**2*x2, x3, omega*x4, omega**2*x5, x6, omega*x7, omega**2*x8])
+
+    def _add_Q2(self):
+        """
+        Add Q2 to  `self`, where Q2 is the 3-torsion point in the
+        canonical symplectic basis (P1,P2,Q1,Q2) of A[3].
+
+        Note: this corresponds to scaling by third roots of unity
+        """
+        x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
+        parent = self._parent
+        omega = parent._omega
+        return parent([x0,x1,x2,omega*x3,omega*x4,omega*x5,omega**2*x6,omega**2*x7,omega**2*x8])
 
 
 class HessianEvenKummerSurface(SageObject):
@@ -618,7 +758,7 @@ class HessianOddKummerSurfacePoint(SageObject):
         self._coords = (v1,v2,v3,v4)
 
 
-    def _repr_(self):
+    def __repr__(self):
         """
         String representation.
         """
@@ -723,14 +863,14 @@ class HessianOddKummerSurfacePoint(SageObject):
         #Note: technically, the point is no longer on the same Kummer surface
         return self._parent([vc1,vc2,vc3,vc4], check=False)
 
-    def evaluate_phi_1(self):
+    def evaluate_phi(self):
         """
             COST:
         """
         pass
 
 
-    def xTRPL(self):
+    def TRPL(self):
         """
             Triple the point.
 

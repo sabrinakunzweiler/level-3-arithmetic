@@ -5,13 +5,16 @@ from sage.categories.morphism import Morphism
 from sage.rings.integer_ring import ZZ
 from sage.rings.finite_rings import finite_field_base
 from sage.rings.number_field import number_field_base
-
+from sage.structure.element import RingElement
+from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 
 from hessian_arithmetic_dim2 import AbelianSurfaceHessianForm
+from hessian_arithmetic_dim2 import AbelianSurfaceHessianPoint
+
 
 class AbelianSurfaceHessianFormHom(Morphism):
     """
-    Base class for morphisms of abelian surface in Hessian form.
+    Base class for morphisms of abelian surfaces in Hessian form.
     """
 
     def _burkhardt_check(self, scalars):
@@ -20,7 +23,7 @@ class AbelianSurfaceHessianFormHom(Morphism):
         an automorphism of the Burkhardt quartic.
         """
         K = self._base_ring
-        R = PolynomialRing(5, K)
+        R = PolynomialRing(K,"x",5)
         x0,x1,x2,x3,x4 = R.gens()
         c0,c1,c2,c3,c4 = scalars
         F = x0*(x0**3 + x1**3 + x2**3 + x3**3 + x4**3) + 3*x1*x2*x3*x4
@@ -68,53 +71,6 @@ class AbelianSurfaceHessianFormHom(Morphism):
         c0,c1,c2,c3,c4 = scalars
         return u0/c0, u1/c1, u2/c2, u3/c3, u4/c4
 
-    def _scale_long(self, P, scalars):
-        """
-        Pointwise scaling of a point on the abelian variety,
-        resepcting multiplication by -1.
-        """
-        x0,x1,x2,x3,x4,x5,x6,x7,x8 = P
-        c0,c1,c2,c3,c4 = scalars
-
-        y0 = c0*x0
-        y1 = c1*x1
-        y2 = c1*x2
-        y3 = c2*x3
-        y4 = c3*x4
-        y5 = c4*x5
-        y6 = c2*x6
-        y7 = c4*x7
-        y8 = c3*x8
-
-        return y0,y1,y2,y3,y4,y5,y6,y7,y8
-
-    def _DFT(self, P):
-        """
-            Apply the discrete Fourier transform.
-
-            COST: 0
-        """
-        omega = self._domain._omega
-        x0, x1, x2, x3, x4, x5, x6, x7, x8 = P
-        y0 = x0 + x1          + x2          + x3          + x4          + x5          + x6          + x7          + x8
-        y1 = x0 + omega*x1    + omega**2*x2 + x3          + omega*x4    + omega**2*x5 + x6          + omega*x7    + omega**2*x8
-        y2 = x0 + omega**2*x1 + omega*x2    + x3          + omega**2*x4 + omega*x5    + x6          + omega**2*x7 + omega*x8
-        y3 = x0 + x1          + x2          + omega*x3    + omega*x4    + omega*x5    + omega**2*x6 + omega**2*x7 + omega**2*x8
-        y4 = x0 + omega*x1    + omega**2*x2 + omega*x3    + omega**2*x4 + x5          + omega**2*x6 + x7          + omega*x8
-        y5 = x0 + omega**2*x1 + omega*x2    + omega*x3    + x4          + omega**2*x5 + omega**2*x6 + omega*x7    + x8
-        y6 = x0 + x1          + x2          + omega**2*x3 + omega**2*x4 + omega**2*x5 + omega*x6    + omega*x7    + omega*x8
-        y7 = x0 + omega*x1    + omega**2*x2 + omega**2*x3 + x4          + omega*x5    + omega*x6    + omega**2*x7 + x8
-        y8 = x0 + omega**2*x1 + omega*x2    + omega**2*x3 + omega*x4    + x5          + omega*x6    + x7          + omega**2*x8
-
-        return y0,y1,y2,y3,y4,y5,y6,y7,y8
-
-    def _cubing(self, P):
-        """
-        Coordinate-wise cubing of P in PP^8
-        """
-        x0, x1, x2, x3, x4, x5, x6, x7, x8 = P
-
-        return x0**3,x1**3,x2**3,x3**3,x4**3,x5**3,x6**3,x7**3,x8**3
 
     def _find_scalars(self, P1, P2):
         """
@@ -132,83 +88,90 @@ class AbelianSurfaceHessianFormHom(Morphism):
         """
         OO = self._domain._neutral_element
 
-        OO = self._cubing(*OO) # 9S + 9M
-        P1 = self._cubing(*P1) # 9S + 9M
-        P2 = self._cubing(*P2) # 9S + 9M
+        OO = OO._cubing() # 9S + 9M
+        P1 = P1._cubing() # 9S + 9M
+        P2 = P2._cubing() # 9S + 9M
 
-        OO = self._DFT(*OO)
-        P1 = self._DFT(*P1)
-        P2 = self._DFT(*P2)
+        OO = OO._DFT()
+        P1 = P1._DFT()
+        P2 = P2._DFT()
 
-
-        #check what the correct indices are, below we use [2,6]
-        # other possibility [1,3], or combinations
-
-        l0 = P1[2]*P2[6] # 1M
-        l1 = P1[0]*P2[6] # 1M
-        l2 = P2[0]*P1[2] # 1M
-
-        k0 = P1[8]*P1[7] # 1M
-        l0 = l0*k0 # 1M
-        l1 = l1*k0 # 1M
-        l3 = l2*P1[3]*P1[7] # 2M
-        l4 = l2*P1[3]*P1[4] # 1M
-        l2 = l2*k0 # 1M
+        # scalars
+        l0 = 1
+        l1 = P1[0]/P1[1]
+        l2 = P2[0]/P2[3]
+        l3 = P1[6]/P1[4]*l2
+        l4 = P1[8]/P1[5]*l3
 
         return l0,l1,l2,l3,l4
 
-    def _compute_d(self, P):
+    def _find_dual_scalars(self, c0, c1, c2, c3, c4):
         """
-        Compute the domain coefficients d0, ..., d4 given a point on the surface.
+            Find the scalars defining the dual isogeny
 
-        INPUT:
-            - arbitrary point P (not 3-torsion)
+            Input:
+            - `c0, ... , c4` : scalars defining a (3,3)-isogeny
 
-        OUTPUT:
-            d0, ..., d4 defining the cubic equations.
+            Output:
+            - `e0, ... , e4` : scalars defining the dual isogeny
+
+            COST: 43 M + 18 S
         """
-        x0, x1, x2, x3, x4, x5, x6, x7, x8 = P
 
-        d0 = x0**3 + x1**3 + x2**3 + x3**3 + x4**3 + x5**3 + x6**3 + x7**3 + x8**3
-        d1 = x0*x1*x2 + x3*x4*x5 + x6*x7*x8
-        d2 = x0*x3*x6 + x1*x4*x7 + x2*x5*x8
-        d3 = x0*x4*x8 + x1*x5*x6 + x2*x3*x7
-        d4 = x0*x5*x7 + x1*x3*x8 + x2*x4*x6
+        OO = self._domain._neutral_element
 
-        assert d0 != 0 #is this the only assertion?
+        s0 = OO[0]
+        s1 = OO[1]
+        s2 = OO[3]
+        s3 = OO[4]
+        s4 = OO[5]
 
-        return d0,d1,d2,d3,d4
+        #image of OO under (non-scaled isogeny)
+        P =  OO
+        P = P._cubing()
+        P = P._DFT()
+        P = P._scale([c0,c1,c2,c3,c4])
+        P = P._cubing()
+        P = P._DFT()
 
-    def _compute_h(self, P):
-        """
-        Compute the domain coefficients h0, ..., h4 given a point on the surface.
+        # compare OO with 3*OO
+        s0 = OO[0]
+        s1 = OO[1]
+        s2 = OO[3]
+        s3 = OO[4]
+        s4 = OO[5]
+        #
+        t0 = P[0]
+        t1 = P[1]
+        t2 = P[3]
+        t3 = P[4]
+        t4 = P[5]
 
-        INPUT:
-            - arbitrary point P (not 3-torsion)
+        # sanity check
+        assert P[2] == t1 and P[6] == t2 and P[7] == t4 and P[8] == t3
 
-        OUTPUT:
-            h0, ..., h4 defining the quadratic equations.
-        """
-        x0, x1, x2, x3, x4, x5, x6, x7, x8 = P
+        t01 = t0*t1 # 1 M
+        t34 = t3*t4 # 1 M
+        e0 = s0*t1*t2*t34 # 3M
+        e1 = s1*t0*t2*t34 # 3M
+        e2 = s2*t01*t34 # 2M
+        e3 = s3*t01*t2*t4 # 3M
+        e4 = s4*t01*t2*t3 # 3M
 
-        A = Matrix([
-            [x0**2, x1*x2, x3*x6, x4*x8, x5*x7],
-            [x1**2, x0*x2, x4*x7, x5*x6, x3*x8],
-            [x2**2, x0*x1, x5*x8, x3*x7, x4*x6],
-            [x3**2, x4*x5, x0*x6, x2*x7, x1*x8],
-            [x4**2, x3*x5, x1*x7, x0*x8, x2*x6],
-            [x5**2, x3*x4, x2*x8, x1*x6, x0*x7],
-            [x6**2, x7*x8, x0*x3, x1*x5, x2*x4],
-            [x7**2, x6*x8, x1*x4, x2*x3, x0*x5],
-            [x8**2, x6*x7, x2*x5, x0*x4, x1*x3]
-        ])
-
-        return tuple(A.right_kernel().gen())
+        return e0,e1,e2,e3,e4
 
 
-    def __init__(self, domain, args, kwd, check=True):
+    def __init__(self, domain, args, kwd, check=True, scalars=None):
         r"""
         Constructor for morphisms of abelian surfaces in Hessian form.
+
+        INPUT:
+
+            - domain: The domain of the morphism (a p.p.a.s. in Hessian form)
+            - args: a scaling vector if the morphism is a scaling,
+                or a tuple consisting of two 9-torsion points
+            - kwd: a keyword determining the type of morphism. Allowed keywords are:
+                    "scaling", "DFT", "isogeny"
 
         EXAMPLES::
 
@@ -218,10 +181,20 @@ class AbelianSurfaceHessianFormHom(Morphism):
         self._domain = domain
         self._base_ring = domain._base_ring
         self._kwd = kwd
+        OO = domain._neutral_element
         d = domain._d
         h = domain._h
+        self._codomain = None
 
-        if kwd == "scaling":
+        if kwd == "dual":
+            phi = args
+            scalars = phi._scalars
+            assert domain == phi._codomain
+            dual_scalars = phi._find_dual_scalars(*scalars)
+            self._scalars = dual_scalars
+            self._codomain = phi._domain
+
+        elif kwd == "scaling":
             scalars = args
             assert len(scalars) == 5
             self._scalars = scalars
@@ -229,52 +202,117 @@ class AbelianSurfaceHessianFormHom(Morphism):
                 assert self._burkhardt_check(scalars)
             new_d = self._scale_inverse(d, scalars)
             new_h = self._scale(h, scalars)
+            new_OO = OO._scale(scalars)
 
         elif kwd == "DFT":
             new_d = self._DFT_Burkhardt_transpose(d)
-            new_h = self._DFT_Burkhardt_transpose(h)
+            new_h = self._DFT_Burkhardt(h)
+            new_OO = OO._DFT()
 
         elif kwd == "isogeny":
-            R1,R2,P = args #two 9-torsion points above the kernel, one extra point (not 3-torsion on the codomain)
+            R1,R2 = args #two 9-torsion points above the kernel, one extra point
             self._scalars = self._find_scalars(R1,R2)
-            # compute the image of P under the isogeny to compute the new parameters
-            P = self._cubing(P)
-            P = self._scale_long(P, self._scalars)
-            P = self._DFT(P)
-            new_d = self._compute_d(P)
-            new_h = self._compute_h(P)
 
+            new_OO = OO._cubing()
+            new_OO = new_OO._DFT()
+            new_OO = new_OO._scale(self._scalars) #note that this is also computed earlier
+            new_d = new_OO._compute_d()
+            new_h = new_OO._compute_h()
 
-        self._codomain = AbelianSurfaceHessianForm(new_d, new_h)
+        elif kwd == "negation": #this is an automorphism
+            new_OO = OO
+            new_h = h
+            new_d = d
+
+        if not self._codomain:
+            self._codomain = AbelianSurfaceHessianForm([new_d, new_h], omega=self._domain._omega)
+            self._codomain._neutral_element = self._codomain(new_OO._coords)
+        # TODO:check if the following works
+        self._domain._phi = self
 
     def is_isomorphism(self):
         """
         Return True if `self` is an isomorphism.
         """
-        return kwd == "scaling" or kwd == "DFT"
+        return self._kwd == "scaling" or self._kwd == "DFT" or self._kwd == "negation"
+
+    def dual(self):
+        """
+        Compute the dual isogeny of self.
+        """
+        assert self._kwd == "isogeny"
+        return AbelianSurfaceHessianFormHom(self.codomain(), self, "dual")
+
+    def codomain(self):
+        return self._codomain
+
+    def domain(self):
+        return self._domain
 
     def __call__(self, P):
         """
         Return the image of the point P under the morphism.
         """
-        assert isinstance(P, AbelianSurfaceHessianForm)
-        coords = self._coords
+        #assert isinstance(P, AbelianSurfaceHessianPoint)
+        #coords = P._coords
         if self._kwd == "scaling":
-            new_coords = self._scale_long(coords, self._scalars)
+            new_P = P._scale(self._scalars)
 
-        elif kwd == "DFT":
-            new_coords = self._DFT(coords)
+        elif self._kwd == "DFT":
+            new_P = P._DFT()
 
-        elif kwd == "isogeny":
-            coords = self._cubing(coords)
-            coords = self._scale_long(coords, self._scalars)
-            new_coords = self._DFT(coords)
+        elif self._kwd == "isogeny" or self._kwd == "dual":
+            new_P = P._cubing()
+            new_P = new_P._DFT()
+            new_P = new_P._scale(self._scalars)
+        elif self._kwd == "negation":
+            new_P = P.negate()
 
-        return self._codomain(new_coords)
-
-
-
-
+        return self._codomain(new_P._coords)
 
 
 
+
+class AbelianSurfaceHessianFormCompositeHom(Morphism):
+    """
+    Base class to represent composite morphisms of
+    abelian surfaces in Hessian form.
+    """
+    def __init__(self, morphism_list, check=True):
+        r"""
+        Constructor for composite morphisms of abelian surfaces in Hessian form.
+
+        INPUT:
+
+            - morphism_list a list of morphisms phi1, ..., phin
+            defining the morphism phin \circ ... \circ phi1
+
+        EXAMPLES::
+
+
+        """
+        n = len(morphism_list)
+        if check:
+            for i in range(n-1):
+                assert(morphism_list[i].codomain() == morphism_list[i+1].domain())
+
+        self._domain = morphism_list[0].domain()
+        self._codomain = morphism_list[-1].codomain()
+        self._base_ring = self._domain._base_ring
+        self._maps = morphism_list
+
+    def __call__(self, P):
+        """
+        Return the image of the point P under the morphism.
+        """
+
+        for phi in self._maps:
+            P = phi(P)
+
+        return P
+
+    def domain(self):
+        return self._domain
+
+    def codomain(self):
+        return self._codomain

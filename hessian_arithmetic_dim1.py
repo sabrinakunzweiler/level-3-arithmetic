@@ -86,7 +86,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: Q2 = H.map_point(P2)
     """
 
-    def __init__(self, arg, a=1, omega=None, basis=None):
+    def __init__(self, arg, a=1, omega=None, basis=None, check=False):
         r"""
         Construct an elliptic curve in (twisted) Hessian form
         a*X^3 + Y^3 + Z^3 = 3*d*X*Y*Z
@@ -103,7 +103,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         if isinstance(arg, RingElement):
             d = arg
             K = d.parent()
-            self.__base_ring = K
+            self._base_ring = K
             self._d = arg
             self._a = K(a)
             if omega:
@@ -112,7 +112,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             E = arg
             self._elliptic_curve = E
             K = E.base_ring()
-            self.__base_ring = K
+            self._base_ring = K
             if basis:
                 [P1,P2] = basis
             else:
@@ -132,9 +132,11 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             [X,Y,Z] = M * vector(P)
             d =  (X**3 + Y**3 + Z**3)/(3*X*Y*Z)
             self._d = d
-            self._a = self.__base_ring.one()
+            self._a = self._base_ring.one()
+        else:
+            raise ValueError("The input is not valid")
 
-        PP = projective_space.ProjectiveSpace(2, K, names='xyz')
+        PP = projective_space.ProjectiveSpace(2, self._base_ring, names='xyz')
         x, y, z = PP.coordinate_ring().gens()
         F = a*x**3 + y**3 + z**3 - 3*d*x*y*z
         self._equation = F
@@ -274,7 +276,6 @@ class EllipticCurveHessianPoint(SageObject):
     Class for representing points on an elliptic curve in
     Hessian form.
 
-
     EXAMPLES::
 
         sage: p = 37
@@ -322,7 +323,7 @@ class EllipticCurveHessianPoint(SageObject):
         Alternatively, the input can directly be a tuple (x, u) representing a curve on the Kummer line.
         """
         K = parent._base_ring
-        self.__base_ring = K
+        self._base_ring = K
         self._parent = parent
 
         if len(coords) == 2: #allow affine input
@@ -334,6 +335,7 @@ class EllipticCurveHessianPoint(SageObject):
         else:
             self._check = False
 
+        self._coords = coords
         self._x = K(coords[0])
         self._y = K(coords[1])
         self._z = K(coords[2])
@@ -593,7 +595,7 @@ class HessianKummerLinePoint(SageObject):
         if isinstance(coords, EllipticCurveHessianPoint):
             coords = coords.xyz()
         K = parent._base_ring
-        self.__base_ring = K
+        self._base_ring = K
 
         self._parent = parent
 
