@@ -17,7 +17,6 @@ from sage.schemes.projective.projective_subscheme import AlgebraicScheme_subsche
 from hessian_arithmetic_dim1 import EllipticCurveHessianForm
 
 
-
 class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
     r"""
     Abelian surface in Hessian form.
@@ -41,10 +40,10 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
         EXAMPLES::
 
-            sage: p = 4*3^3 - 1
-            sage: Fp = GF(p^2)
+            sage: p = 4*3**3 - 1
+            sage: Fp = GF(p**2)
             sage: R.<x> = Fp[]
-            sage: omega = (x^2+x+1).roots()[0][0]
+            sage: omega = (x**2+x+1).roots()[0][0]
 
         We construct a product surface in Hessian form::
 
@@ -54,7 +53,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             sage: E1 = E0.isogeny(P0).codomain()
             sage: H1 = EllipticCurveHessianForm(E1, omega=omega)
             sage: A = AbelianSurfaceHessianForm([H0,H1]); A
-            Abelian surface in Hessian form with coefficients d = (30*z2 + 63, 71*z2 + 27, 71*z2 + 27, 1, 1), h =  (0, 0, 0, 106, 1) over Finite Field in z2 of size 107^2
+            Abelian surface in Hessian form with coefficients d = (30*z2 + 63, 71*z2 + 27, 71*z2 + 27, 1, 1), h =  (0, 0, 0, 106, 1) over Finite Field in z2 of size 107**2
         """
         assert len(args) == 2
 
@@ -76,13 +75,15 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             except:
                 pass
         else:
-            self._reducible = False #TODO: this is in general not correct!
             self._d = args[0]
             self._h = args[1]
             K = self._d[0].parent()
         d0,d1,d2,d3,d4 = self._d
         h0,h1,h2,h3,h4 = self._h
-        #assert d0*h0 + d1*h1 + d2*h2 + d3*h3 + d4*h4 == 0 #TODO: double-check this condition!
+        #check that d and h are valid inputs
+        assert d0*h0 + d1*h1 + d2*h2 + d3*h3 + d4*h4 == 0
+        assert h0*(h0**3 + h1**3 + h2**3 + h3**3 + h4**3) + 3*h1*h2*h3*h4 == 0 # h is a point on the burkhardt quartic
+
         self._base_ring = K
         P8, vars = ProjectiveSpace(8, K, names="X00,X01,X02,X10,X11,X12,X20,X21,X22").objgens()
         X00,X01,X02,X10,X11,X12,X20,X21,X22 = vars
@@ -163,6 +164,51 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         """
         return self._neutral_element
 
+    def is_reducible(self):
+        """
+        Return `True` if self is the product of two elliptic curves.
+        """
+        try:
+            return self._reducible
+        except:
+            # check if h is a singular point on the Burkhardt quartic
+            h0,h1,h2,h3,h4 = self._h
+            gradient = [4*h0**3 + h1**3 + h2**3 + h3**3 + h4**3,
+            3*h0*h1**2 + 3*h2*h3*h4,
+            3*h0*h2**2 + 3*h1*h3*h4,
+            3*h0*h3**2 + 3*h1*h2*h4,
+            3*h1*h2*h3 + 3*h0*h4**2]
+            self._reducible = all([g == 0 for g in gradient])
+            return self._reducible
+
+    def elliptic_curves(self):
+        """
+        If `self` is a product of elliptic curves E1 x E2, return these elliptic curves.
+        """
+        try:
+            return self._ellitpic_curves
+        except:
+            if not self.is_reducible():
+                raise ValueError("The abelian surface is not reducible.")
+            d = self._d
+            if d[3] != d[4]:
+                raise NotImplementedError("We require that the abelian surface is equipped with the product theta structure")
+            d1 = d[1]/d[4]
+            d2 = d[2]/d[4]
+            assert d1*d2 == d[0]/d[4]
+
+            H1 = EllipticCurveHessianForm(d1)
+            H2 = EllipticCurveHessianForm(d2)
+
+            self._ellitpic_curves = (H1,H2)
+            return (H1,H2)
+
+
+    def is_irreducible(self):
+        """
+        Return `True` is self is irreducible.
+        """
+        return not self.is_reducible()
 
     def kummer_odd(self):
         """
@@ -176,29 +222,28 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         """
         return HessianEvenKummerSurface(self)
 
-    def canonical_isogeny(self, R1, R2):
+    def canonical_isogeny(self, R1, R2, auxP=None):
         """
         Create the canonical (3,3)-isogeny with kernel 3*(R1,R2).
+
+        If the codomain is reducible, and auxiliary point auxP
+        is required to determine the equations
         """
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
 
-        self._phi = AbelianSurfaceHessianFormHom(self, [R1,R2], "isogeny")
+        self._phi = AbelianSurfaceHessianFormHom(self, [R1,R2], "isogeny", auxP=auxP)
         return self._phi
 
-    def symplectic_transformation(self, a,b,c, second=False):
+    def symplectic_transformation(self, a,b,c):
         """
         Compute the symplectic transformation which sends
         The kernel defined by <Q1 + a*P1 + b*P2, Q2 + b*P1 + c*P2>
         to canonical form (Q1',Q2').
-
-        In the second option, it is assumeed that the kernel is
-        <P1 + a*Q1 + b*Q2, P2 + b*Q1 + c*Q2>
         """
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
         omega = self._omega
 
-        if not second:
-            scalars = (omega**(a+c), omega**c, omega**a, omega**(2*b), omega**b)
+        scalars = (omega**(a+c), omega**c, omega**a, omega**(2*b), omega**b)
 
         return AbelianSurfaceHessianFormHom(self, scalars, "scaling", check=True)
 
@@ -217,6 +262,82 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
 
         return AbelianSurfaceHessianFormHom(self, [], "negation")
+
+    def product_structure_transformation(self):
+        """
+        If self is reducible, then a transformation to product structure is computed.
+
+        NOTE: This is not necessarily the "easiest" transformation that exists.
+        """
+        from hessian_morphisms_dim2 import AbelianSurfaceHessianFormCompositeHom
+
+        if not self.is_reducible():
+            raise ValueError("The abelian surface is not reducible")
+
+        A = self
+        h = A._h
+        omega = self._omega
+        trafos = []
+        #first we reduce to singularities of Type (b)
+        if not all([hi!=0 for hi in h]):
+            # we need that h is not of the form [0,0,0,-1,1] (or a permutation)
+            if sum(h) == 0:
+                if h[1] !=0:
+                    a,b,c = 1,1,0
+                else:
+                    a,b,c = 0,1,0
+                trafo = A.symplectic_transformation(a,b,c)
+                A = trafo.codomain()
+                h = A._h
+                assert sum(h) != 0
+                trafos.append(trafo)
+            trafo = A.DFT()
+            A = trafo.codomain()
+            h = A._h
+            assert all([hi!=0 for hi in h])
+            trafos.append(trafo)
+        #any singularity of type (b) can be transformed to [1,-1,-1,-om^2,-om]
+        if h[0] + h[1] == 0:
+            a = 0
+        elif h[0] + omega*h[1] == 0:
+            a = 1
+        else:
+            a = 2
+        if h[0] + h[2] == 0:
+            c = 0
+        elif h[0] + omega*h[2] == 0:
+            c = 1
+        else:
+            c = 2
+        if h[0] + omega**(2*a+2*c+1)*h[3] == 0:
+            b = 0
+        elif h[0] + omega**(2*a+2*c)*h[3] == 0:
+            b = 1
+        else:
+            b = 2
+        trafo = A.symplectic_transformation(a,b,c)
+        A = trafo.codomain()
+        h = A._h
+        assert h[0] + h[1] == 0
+        assert h[0] + h[2] == 0
+        assert h[0] + omega*h[3] == 0
+        assert h[0] + omega**2*h[4] == 0
+        trafos.append(trafo)
+        #
+        trafo = A.DFT()
+        A = trafo.codomain()
+        h = A._h
+        assert h[3] + omega*h[4] == 0
+        assert h[0] == 0
+        trafos.append(trafo)
+        #
+        trafo = A.symplectic_transformation(0,2,0)
+        A = trafo.codomain()
+        h = A._h
+        d = A._d
+        assert d[3] == d[4] #sanity check
+        trafos.append(trafo)
+        return AbelianSurfaceHessianFormCompositeHom(trafos)
 
 
 class AbelianSurfaceHessianPoint(SageObject):
@@ -372,7 +493,7 @@ class AbelianSurfaceHessianPoint(SageObject):
         Compute the domain coefficients d0, ..., d4 given a point on the surface.
 
         INPUT:
-            - arbitrary point P (not 3-torsion)
+            - arbitrary point P (if the surface is reducible, then P cannot be 3-torsion)
 
         OUTPUT:
             d0, ..., d4 defining the cubic equations.
@@ -385,7 +506,7 @@ class AbelianSurfaceHessianPoint(SageObject):
         d3 = 3*(x0*x4*x8 + x1*x5*x6 + x2*x3*x7)
         d4 = 3*(x0*x5*x7 + x1*x3*x8 + x2*x4*x6)
 
-        assert d0 != 0 #is this the only assertion?
+        assert d0 != 0
 
         return d0,d1,d2,d3,d4
 
@@ -413,12 +534,7 @@ class AbelianSurfaceHessianPoint(SageObject):
             [x8**2, x6*x7, x2*x5, x0*x4, x1*x3]
         ])
 
-        try:
-            return tuple(A.right_kernel().gen())
-        except:
-            print(A)
-            print(A.right_kernel())
-        return None
+        return tuple(A.right_kernel().gen())
 
 
     def evaluate_phi(self):
@@ -451,6 +567,8 @@ class AbelianSurfaceHessianPoint(SageObject):
 
         P = phi(self)
         P = phi_dual(P)
+        #P = P.negate()
+
         return P
 
     def _add_P1(self):

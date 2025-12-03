@@ -90,7 +90,7 @@ def translate_to_Hessian(basis,k, kernel_scalars):
 
 	return (R,S), (R_9,S_9)
 
-def compute_isogeny_chain(kernel, kernel_aux, n, scalars):
+def compute_isogeny_chain(kernel, kernel_aux, n, scalars, auxP=None):
 	"""
 	Compute the (3^n,3^n)-isogeny chain with the given kernel `3*kernel`.
 
@@ -99,6 +99,9 @@ def compute_isogeny_chain(kernel, kernel_aux, n, scalars):
 	- aux_kernel: 9-torsion points lying above the kernel generators
 	- k: exponent
 	- scalars = (a,b,c): the kernel generators are of the form (P1 + aQ1 + bQ2, P2 + bQ1 + cQ2)
+	- optional: if one expects to encounter a reducible surface in the chain,
+	an auxiliary point is needed to determine the equations defining the reducible surface
+	(for simplicity, we assume that the last step is a splitting)
 	"""
 
 	P,Q = kernel
@@ -125,17 +128,32 @@ def compute_isogeny_chain(kernel, kernel_aux, n, scalars):
 		P_9,Q_9 = trafo(P_9), trafo(Q_9)
 		A = trafo.codomain()
 		maps.append(trafo)
-
-		#isogeny-computation
-		phi = A.canonical_isogeny(P_9, Q_9)
-		# 9-torsion points (on the codomain of phi, i.e. 27-torsion points on the domain)
-		P_9, Q_9 = P,Q
-		for i in range(n-k-2):
-			P_9 = P_9.triple()
-			Q_9 = Q_9.triple()
-		P_9, Q_9 = phi(P_9), phi(Q_9)
-		P,Q = phi(P), phi(Q) # 3^(n-k) torsion
-		A = phi.codomain()
+		if k < n-1:
+			#isogeny-computation
+			try:
+				phi = A.canonical_isogeny(P_9, Q_9)
+			except:
+				print("negation at step k = ", k)
+				phi = A.canonical_isogeny(P_9.negate(), Q_9.negate())
+			# 9-torsion points (on the codomain of phi, i.e. 27-torsion points on the domain)
+			P_9, Q_9 = P,Q
+			for i in range(n-k-2):
+				P_9 = P_9.triple()
+				Q_9 = Q_9.triple()
+			P_9, Q_9 = phi(P_9), phi(Q_9)
+			P,Q = phi(P), phi(Q) # 3^(n-k) torsion
+			A = phi.codomain()
+		else:
+			if auxP:
+				for m in maps:
+					auxP = m(auxP)
+				try:
+					phi = A.canonical_isogeny(P_9, Q_9, auxP=auxP)
+				except:
+					print("negation at step k = ", k)
+					phi = A.canonical_isogeny(P_9.negate(), Q_9.negate(), auxP=auxP)
+			else:
+				phi = A.canonical_isogeny(P_9,Q_9)
 		maps.append(phi)
 
 	return AbelianSurfaceHessianFormCompositeHom(maps)

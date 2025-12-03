@@ -69,8 +69,8 @@ class AbelianSurfaceHessianFormHom(Morphism):
         """
         u0,u1,u2,u3,u4 = P
         c0,c1,c2,c3,c4 = scalars
-        return u0/c0, u1/c1, u2/c2, u3/c3, u4/c4
-
+        #return u0/c0, u1/c1, u2/c2, u3/c3, u4/c4
+        return u0*c1*c2*c3*c4, c0*u1*c2*c3*c4, c0*c1*u2*c3*c4, c0*c1*c2*u3*c4, c0*c1*c2*c3*u4
 
     def _find_scalars(self, P1, P2):
         """
@@ -161,7 +161,7 @@ class AbelianSurfaceHessianFormHom(Morphism):
         return e0,e1,e2,e3,e4
 
 
-    def __init__(self, domain, args, kwd, check=True, scalars=None):
+    def __init__(self, domain, args, kwd, check=True, scalars=None, auxP=None):
         r"""
         Constructor for morphisms of abelian surfaces in Hessian form.
 
@@ -172,6 +172,7 @@ class AbelianSurfaceHessianFormHom(Morphism):
                 or a tuple consisting of two 9-torsion points
             - kwd: a keyword determining the type of morphism. Allowed keywords are:
                     "scaling", "DFT", "isogeny"
+            - auxP: auxiliary point on the domain. Required if the codomain of an isogeny is reducible.
 
         EXAMPLES::
 
@@ -216,8 +217,15 @@ class AbelianSurfaceHessianFormHom(Morphism):
             new_OO = OO._cubing()
             new_OO = new_OO._DFT()
             new_OO = new_OO._scale(self._scalars) #note that this is also computed earlier
-            new_d = new_OO._compute_d()
-            new_h = new_OO._compute_h()
+            if auxP:
+                auxP = auxP._cubing()
+                auxP = auxP._DFT()
+                auxP = auxP._scale(self._scalars)
+                new_d = auxP._compute_d()
+                new_h = auxP._compute_h()
+            else:
+                new_d = new_OO._compute_d()
+                new_h = new_OO._compute_h()
 
         elif kwd == "negation": #this is an automorphism
             new_OO = OO

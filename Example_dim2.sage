@@ -9,7 +9,8 @@ omega = om
 
 E1 = EllipticCurve(Fp, [1,0])
 # "random" isogenous curve with the same product structure
-P = E1.lift_x(2)
+#P = E1.lift_x(2)
+P = 3^5*E1.random_element()
 E2 = E1.isogeny(P).codomain()
 
 # symplectic 3^k-torsion basis
