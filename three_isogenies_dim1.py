@@ -9,7 +9,8 @@
     (x : y : z) |-> (x : y + z) = : (x : u)
 
 """
-
+import sys
+sys.path.append(".")
 from hessian_arithmetic_dim1 import *
 
 

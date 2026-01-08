@@ -16,7 +16,7 @@ def create_basis(E1,E2,k,omega=None):
 
 	OUTPUT:
 	- (P1,P2,Q1,Q2) with E1[3^k] = <P1,Q1>, E2[3^k] = <P2,Q2>
-	with e(P1,P2) = e(Q1,Q2), and e(3^(k-1)P1,3^(k-1)Q1) = omega^2
+	with e(P1,Q1) = e(P2,Q2), and e(3^(k-1)P1,3^(k-1)Q1) = omega
 	(if omega is specified)
 	"""
 	P1,Q1 = E1.torsion_basis(3^k)
@@ -63,30 +63,30 @@ def translate_to_Hessian(basis,k, kernel_scalars):
 	P2_3 = 3^(k-1)*P2
 	Q2_3 = 3^(k-1)*Q2
 
-	omega = P1_3.weil_pairing(Q1_3,3)**2
+	omega = P1_3.weil_pairing(Q1_3,3)^2
 
 	H1 = EllipticCurveHessianForm(E1, basis=[P1_3,Q1_3])
 	H2 = EllipticCurveHessianForm(E2, basis=[P2_3,Q2_3])
-	A0 = AbelianSurfaceHessianForm([H1,H2], omega=omega)
-
+	A0 = AbelianSurfaceHessianForm([H2,H1], omega=omega^2)
 
 	a,b,c = kernel_scalars
-	# to ease the transformation, we multiply everything by (-1)
-	R1 = H1.map_point(b*Q1)
-	R2 = H2.map_point(P2 + a*Q2)
-	S1 = H1.map_point(P1 + c*Q1)
-	S2 = H2.map_point(b*Q2)
+
+	R1 = H1.map_point(P1+a*Q1)
+	R2 = H2.map_point(b*Q2)
+	S1 = H1.map_point(b*Q1)
+	S2 = H2.map_point(P2+c*Q2)
 
 	#auxiliary 9 -torsion points
-	R1_9 = H1.map_point(3^(k-2)*b*Q1)
-	S1_9 = H1.map_point(3^(k-2)*(P1 + c*Q1))
-	R2_9 = H2.map_point(3^(k-2)*(P2 + a*Q2))
-	S2_9 = H2.map_point(3^(k-2)*b*Q2)
+	R1_9 = H1.map_point(3^(k-2)*(P1+a*Q1))
+	R2_9 = H2.map_point(3^(k-2)*(b*Q2))
+	S1_9 = H1.map_point(3^(k-2)*(b*Q1))
+	S2_9 = H2.map_point(3^(k-2)*(P2+c*Q2))
 
-	R = A0([R1,R2])
-	S = A0([S1,S2])
-	R_9 = A0([R1_9,R2_9])
-	S_9 = A0([S1_9,S2_9])
+
+	R = A0([R2,R1])
+	S = A0([S2,S1])
+	R_9 = A0([R2_9,R1_9])
+	S_9 = A0([S2_9,S1_9])
 
 	return (R,S), (R_9,S_9)
 
@@ -101,7 +101,7 @@ def compute_isogeny_chain(kernel, kernel_aux, n, scalars, auxP=None):
 	- scalars = (a,b,c): the kernel generators are of the form (P1 + aQ1 + bQ2, P2 + bQ1 + cQ2)
 	- optional: if one expects to encounter a reducible surface in the chain,
 	an auxiliary point is needed to determine the equations defining the reducible surface
-	(for simplicity, we assume that the last step is a splitting)
+	(for simplicity, we assume that in this case the last step is a splitting)
 	"""
 
 	P,Q = kernel
@@ -111,14 +111,13 @@ def compute_isogeny_chain(kernel, kernel_aux, n, scalars, auxP=None):
 	# first step: transform the kernel into the right form
 	# (this only depends on a,b,c)
 	A0 = P._parent
-	trafo0 = A0.symplectic_transformation(a,-b,c) #change this to b in the code at some point!
+	trafo0 = A0.symplectic_transformation(a,b,c)
 	P,Q = trafo0(P), trafo0(Q)
 	P_9,Q_9 = trafo0(P_9), trafo0(Q_9)
 
 	m1 = trafo0.codomain().negation()
-	P,Q,P_9,Q_9 = m1(P), m1(Q), m1(P_9), m1(Q_9)
-	maps = [trafo0, m1]
-
+	#P,Q,P_9,Q_9 = m1(P), m1(Q), m1(P_9), m1(Q_9)
+	maps = [trafo0]
 
 	A = trafo0.codomain()
 	for k in range(n):
@@ -126,15 +125,16 @@ def compute_isogeny_chain(kernel, kernel_aux, n, scalars, auxP=None):
 		trafo = A.DFT()
 		P,Q = trafo(P), trafo(Q)
 		P_9,Q_9 = trafo(P_9), trafo(Q_9)
-		A = trafo.codomain()
 		maps.append(trafo)
+		#negation (technicality)
+		m1 = trafo.codomain().negation()
+		P,Q,P_9,Q_9 = m1(P), m1(Q), m1(P_9), m1(Q_9)
+		maps.append(m1)
+		#
+		A = m1.codomain()
 		if k < n-1:
 			#isogeny-computation
-			try:
-				phi = A.canonical_isogeny(P_9, Q_9)
-			except:
-				print("negation at step k = ", k)
-				phi = A.canonical_isogeny(P_9.negate(), Q_9.negate())
+			phi = A.canonical_isogeny(P_9, Q_9)
 			# 9-torsion points (on the codomain of phi, i.e. 27-torsion points on the domain)
 			P_9, Q_9 = P,Q
 			for i in range(n-k-2):
@@ -147,11 +147,7 @@ def compute_isogeny_chain(kernel, kernel_aux, n, scalars, auxP=None):
 			if auxP:
 				for m in maps:
 					auxP = m(auxP)
-				try:
-					phi = A.canonical_isogeny(P_9, Q_9, auxP=auxP)
-				except:
-					print("negation at step k = ", k)
-					phi = A.canonical_isogeny(P_9.negate(), Q_9.negate(), auxP=auxP)
+				phi = A.canonical_isogeny(P_9, Q_9, auxP=auxP)
 			else:
 				phi = A.canonical_isogeny(P_9,Q_9)
 		maps.append(phi)

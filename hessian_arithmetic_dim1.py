@@ -17,6 +17,8 @@ from sage.structure.element import RingElement
 from sage.structure.sage_object import SageObject
 from sage.matrix.constructor import Matrix
 from sage.modules.free_module_element import vector
+from sage.rings.integer import Integer
+
 
 
 #auxiliary function
@@ -60,7 +62,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
 
     EXAMPLES:
 
-    We construct a Curve in Hessian form from a given elliptic curve E.
+    We construct an elliptic curve in Hessian form from a given elliptic curve E.
     We require that E has full rational 3-torsion::
 
         sage: p = 4*3^3 - 1
@@ -71,8 +73,8 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: E = EllipticCurve(Fp, [1,0])
         sage: H = EllipticCurveHessianForm(E); H # random
         Elliptic Curve in Hessian form defined by x^3 + y^3 + (-z2 + 30)*x*y*z + z^3 over Finite Field in z2 of size 107^2
-    
-    We can check that the curves are isomorphic, 
+
+    We can check that the curves are isomorphic,
     using the formula for the j-invariant on Hessian curves::
 
         sage: H.j_invariant() == E.j_invariant()
@@ -84,9 +86,25 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         sage: P2 = E.random_point()
         sage: Q1 = H.map_point(P1)
         sage: Q2 = H.map_point(P2)
+
+    It is also possible to work over fields of characteristic 0.
+    In this case it is necessary to provide an additional point as input,
+    to be able to transform an elliptic curve into Hesse form ::
+
+        sage: R.<x> = QQ[]
+        sage: K.<omega> = QQ.extension(x^2+x+1)
+        sage: E = EllipticCurve(K,[0,0,1,-6,3])
+        sage: P = E.lift_x(-4)
+        sage: Q = E.lift_x(3)
+        sage: Paux = E([4*omega+1,4*omega-6])
+        sage: H = EllipticCurveHessianForm(E, basis=[P,Q], P=Paux); H
+        Elliptic Curve in Hessian form defined by x^3 + y^3 - 6*x*y*z + z^3 over Number Field in omega with defining polynomial x^2 + x + 1
+        sage: H.j_invariant() == E.j_invariant()
+        True
+
     """
 
-    def __init__(self, arg, a=1, omega=None, basis=None, check=False):
+    def __init__(self, arg, a=1, omega=None, basis=None, check=False, P=None):
         r"""
         Construct an elliptic curve in (twisted) Hessian form
         a*X^3 + Y^3 + Z^3 = 3*d*X*Y*Z
@@ -117,18 +135,24 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
                 [P1,P2] = basis
             else:
                 [P1,P2] = E.torsion_basis(3)
+            if omega:
+                self._omega = omega
+                if P1.weil_pairing(P2, Integer(3)) != omega**2:
+                    P1 = -P1
+                    assert P1.weil_pairing(P2, Integer(3)) == omega**2
+            else:
+                self._omega = P1.weil_pairing(P2, Integer(3))**2
             P3 = P1 + P2
-            omega = P1.weil_pairing(P2, 3)**2
-            self._omega = omega
-            M = transformation_matrix_to_Hessian(P1,P2,P3,omega)
+            M = transformation_matrix_to_Hessian(P1,P2,P3,self._omega)
             self._trafo = M
-            #need to check that there exists a point of order >3.
-            if E.order() == 9:
-                raise ValueError()
-            while True:
-                P = E.random_point()
-                if P.order() != 3 and P.order() != 1:
-                    break
+            #need to check that there exists a point of order > 3.
+            if not P:
+                if E.order() == 9:
+                    raise ValueError()
+                while True:
+                    P = E.random_point()
+                    if P.order() != 3 and P.order() != 1:
+                        break
             [X,Y,Z] = M * vector(P)
             d =  (X**3 + Y**3 + Z**3)/(3*X*Y*Z)
             self._d = d
@@ -140,7 +164,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         x, y, z = PP.coordinate_ring().gens()
         F = a*x**3 + y**3 + z**3 - 3*d*x*y*z
         self._equation = F
-        self._neutral_element = EllipticCurveHessianPoint(self, [K.zero(),-K.one(),K.one()], check=check)
+        self._neutral_element = EllipticCurveHessianPoint(self, [K.zero(),-K.one(),K.one()], check=True)
         plane_curve.ProjectivePlaneCurve.__init__(self, PP, F)
 
     def _repr_(self):
@@ -227,10 +251,11 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
 
 
         EXAMPLES::
+
             sage: Fp = FiniteField(19)
             sage: E1 = EllipticCurveHessianForm(Fp(2),a=Fp(3))
             sage: E2 = E1.untwist()
-            Traceback (most recent call last)
+            Traceback (most recent call last):
             ...
             ValueError: The curve does not admit a model in untwisted form.
 
@@ -261,6 +286,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
             sage: Fp = FiniteField(19)
             sage: E1 = EllipticCurveHessianForm(Fp(2),a=Fp(3))
             sage: E2 = E1.twisted_normalform(); E2
+            Elliptic Curve in Hessian form defined by -2*x^3 + y^3 - 3*x*y*z + z^3 over Finite Field of size 19
             sage: E1.j_invariant() == E2.j_invariant()
             True
         """
@@ -283,27 +309,27 @@ class EllipticCurveHessianPoint(SageObject):
         sage: R.<x> = Fp[]
         sage: omega = (x^2+x+1).roots()[0][0]
         sage: E = EllipticCurve(Fp, [4,1])
-        sage: H = EllipticCurveHessianForm(E)
+        sage: H = EllipticCurveHessianForm(E,omega=omega)
 
     We can map points from the "base curve E" to H::
 
         sage: P1 = E([27,16])
         sage: Q1 = H.map_point(P1); Q1
-        (26 : 0 : 11)
+        (0 : 26 : 27)
 
     Or we can create points directly by passing coordinates::
 
-        sage: R1 = H([10,0,27])
+        sage: R1 = H([0,26,27])
         sage: Q1 == R1
         True
-        sage: Q1 == H([Fp(10/27),0,1])
+        sage: Q1 == H([0,Fp(26/27),1])
         True
 
     Arithmetic on H is implemented as well::
 
         sage: P2 = E([22,9])
         sage: Q2 = H.map_point(P2); Q2
-        (27 : 5 : 32)
+        (34 : 21 : 10)
         sage: Q3 = Q1.add(Q2)
         sage: Q3 == H.map_point(P1 + P2)
         True

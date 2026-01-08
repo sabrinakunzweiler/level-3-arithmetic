@@ -2,6 +2,9 @@
 Abelian surfaces in Hessian form.
 """
 
+import sys
+sys.path.append(".")
+
 from sage.schemes.generic.morphism import SchemeMorphism
 from sage.structure.element import AdditiveGroupElement
 #import sage.schemes.projective.projective_space as projective_space
@@ -53,7 +56,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             sage: E1 = E0.isogeny(P0).codomain()
             sage: H1 = EllipticCurveHessianForm(E1, omega=omega)
             sage: A = AbelianSurfaceHessianForm([H0,H1]); A
-            Abelian surface in Hessian form with coefficients d = (30*z2 + 63, 71*z2 + 27, 71*z2 + 27, 1, 1), h =  (0, 0, 0, 106, 1) over Finite Field in z2 of size 107**2
+            Abelian surface in Hessian form with coefficients d = (91*z2 + 12, 29*z2 + 93, 29*z2 + 93, 1, 1), h =  (0, 0, 0, 106, 1) over Finite Field in z2 of size 107^2
         """
         assert len(args) == 2
 
@@ -243,7 +246,8 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
         omega = self._omega
 
-        scalars = (omega**(a+c), omega**c, omega**a, omega**(2*b), omega**b)
+        #scalars = (omega**(a+c), omega**c, omega**a, omega**(2*b), omega**b)
+        scalars = (1 , omega**(2*a), omega**(2*c), omega**(2*a+b+2*c), omega**(2*a+2*b+2*c) )
 
         return AbelianSurfaceHessianFormHom(self, scalars, "scaling", check=True)
 
@@ -300,18 +304,18 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         if h[0] + h[1] == 0:
             a = 0
         elif h[0] + omega*h[1] == 0:
-            a = 1
-        else:
             a = 2
+        else:
+            a = 1
         if h[0] + h[2] == 0:
             c = 0
         elif h[0] + omega*h[2] == 0:
-            c = 1
-        else:
             c = 2
+        else:
+            c = 1
         if h[0] + omega**(2*a+2*c+1)*h[3] == 0:
             b = 0
-        elif h[0] + omega**(2*a+2*c)*h[3] == 0:
+        elif h[0] + omega**(2*a+2*c+2)*h[3] == 0:
             b = 1
         else:
             b = 2
@@ -331,7 +335,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         assert h[0] == 0
         trafos.append(trafo)
         #
-        trafo = A.symplectic_transformation(0,2,0)
+        trafo = A.symplectic_transformation(0,1,0)
         A = trafo.codomain()
         h = A._h
         d = A._d
@@ -568,7 +572,6 @@ class AbelianSurfaceHessianPoint(SageObject):
         P = phi(self)
         P = phi_dual(P)
         #P = P.negate()
-
         return P
 
     def _add_P1(self):

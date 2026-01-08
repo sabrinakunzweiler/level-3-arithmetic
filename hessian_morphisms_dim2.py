@@ -1,3 +1,6 @@
+import sys
+sys.path.append(".")
+
 from sage.misc.cachefunc import cached_method
 #from sage.structure.richcmp import richcmp_not_equal, richcmp, op_EQ, op_NE
 
@@ -27,8 +30,8 @@ class AbelianSurfaceHessianFormHom(Morphism):
         x0,x1,x2,x3,x4 = R.gens()
         c0,c1,c2,c3,c4 = scalars
         F = x0*(x0**3 + x1**3 + x2**3 + x3**3 + x4**3) + 3*x1*x2*x3*x4
-        G = F(c0*x0,c1*x1,c2*x2,c3*x3,c4*x4)/c0**4
-        return F == G
+        G = F(c0*x0,c1*x1,c2*x2,c3*x3,c4*x4)
+        return F == G*c0**4
 
     def _DFT_Burkhardt(self, P):
         """
@@ -97,11 +100,17 @@ class AbelianSurfaceHessianFormHom(Morphism):
         P2 = P2._DFT()
 
         # scalars
-        l0 = 1
-        l1 = P1[0]/P1[1]
-        l2 = P2[0]/P2[3]
-        l3 = P1[6]/P1[4]*l2
-        l4 = P1[8]/P1[5]*l3
+        #l0 = 1
+        #l1 = P1[0]/P1[1]
+        #l2 = P2[0]/P2[3]
+        #l3 = P1[6]/P1[4]*l2
+        #l4 = P1[8]/P1[5]*l3
+
+        l0 = P1[1]*P1[4]*P1[5]*P2[3] # 3M
+        l1 = P1[0]*P1[4]*P1[5]*P2[3] # 1M
+        l2 = P1[1]*P1[4]*P1[5]*P2[0] # 2M
+        l3 = P1[1]*P1[5]*P1[6]*P2[0] # 3M
+        l4 = P1[1]*P1[6]*P1[8]*P2[0] # 1M
 
         return l0,l1,l2,l3,l4
 
@@ -115,7 +124,7 @@ class AbelianSurfaceHessianFormHom(Morphism):
             Output:
             - `e0, ... , e4` : scalars defining the dual isogeny
 
-            COST: 43 M + 18 S
+            COST: 34 M + 18 S
         """
 
         OO = self._domain._neutral_element
@@ -128,10 +137,10 @@ class AbelianSurfaceHessianFormHom(Morphism):
 
         #image of OO under (non-scaled isogeny)
         P =  OO
-        P = P._cubing()
+        P = P._cubing() # 9M + 9S
         P = P._DFT()
-        P = P._scale([c0,c1,c2,c3,c4])
-        P = P._cubing()
+        P = P._scale([c0,c1,c2,c3,c4]) # 9M
+        P = P._cubing() # 9M + 9S
         P = P._DFT()
 
         # compare OO with 3*OO
@@ -252,10 +261,36 @@ class AbelianSurfaceHessianFormHom(Morphism):
         return AbelianSurfaceHessianFormHom(self.codomain(), self, "dual")
 
     def codomain(self):
+        """
+        Return the codomain of `self`
+        """
         return self._codomain
 
     def domain(self):
+        """
+        Return the domain of `self`
+        """
         return self._domain
+
+    def _repr_(self):
+        """
+        String representation.
+        """
+
+        if self._kwd == "scaling":
+            s = "Scaling morphisms with scalars "
+            s += str(self._scalars)
+        elif self._kwd == "DFT":
+            s = "Discrete Fourier transform "
+        elif self._kwd == "isogeny" or self._kwd == "dual":
+            s = "(3,3)-isogeny "
+        if self._kwd == "negation":
+            s = "multiplication by [-1]"
+
+        s += "\n domain: " + str(self.domain())
+        s += "\n codomain: " + str(self.codomain())
+
+        return s
 
     def __call__(self, P):
         """
@@ -264,19 +299,17 @@ class AbelianSurfaceHessianFormHom(Morphism):
         #assert isinstance(P, AbelianSurfaceHessianPoint)
         #coords = P._coords
         if self._kwd == "scaling":
-            new_P = P._scale(self._scalars)
-
+            P = P._scale(self._scalars)
         elif self._kwd == "DFT":
-            new_P = P._DFT()
-
+            P = P._DFT()
         elif self._kwd == "isogeny" or self._kwd == "dual":
-            new_P = P._cubing()
-            new_P = new_P._DFT()
-            new_P = new_P._scale(self._scalars)
-        elif self._kwd == "negation":
-            new_P = P.negate()
-
-        return self._codomain(new_P._coords)
+            P = P._cubing()
+            P = P._DFT()
+            P = P._scale(self._scalars)
+        if self._kwd == "negation" or self._kwd == "dual":
+            return self._codomain(P._coords).negate()
+        else:
+            return self._codomain(P._coords)
 
 
 
@@ -309,6 +342,15 @@ class AbelianSurfaceHessianFormCompositeHom(Morphism):
         self._base_ring = self._domain._base_ring
         self._maps = morphism_list
 
+    def _repr_(self):
+        """
+        String representation.
+        """
+        s = "Composite morphism of abelian surfaces in Hesse form"
+        s += "\ndomain: " + str(self._domain)
+        s += "\ncodomain: " + str(self._codomain)
+        return s
+
     def __call__(self, P):
         """
         Return the image of the point P under the morphism.
@@ -320,7 +362,13 @@ class AbelianSurfaceHessianFormCompositeHom(Morphism):
         return P
 
     def domain(self):
+        """
+        Return the domain of `self`
+        """
         return self._domain
 
     def codomain(self):
+        """
+        Return the codomain of `self`
+        """
         return self._codomain
