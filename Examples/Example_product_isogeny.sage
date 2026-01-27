@@ -55,7 +55,7 @@ c = 0
 # we need to push through an auxiliary point in order to recover the
 # coefficients of the (reducible!) codomain (note we actually know them from our construction)
 A = R._parent
-H2,H1 = A._ellitpic_curves
+H2,H1 = A._elliptic_curves
 
 aux1 = H1.map_point(E1.random_element())
 aux2 = H2.map_point(E2.random_element())

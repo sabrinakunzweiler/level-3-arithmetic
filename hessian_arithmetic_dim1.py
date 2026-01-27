@@ -114,7 +114,7 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
 
         - ``arg`` -- either this is ``d``, the Hessian coefficient of the curve
         (with optional parameter a to define a twist),
-        or an ellitpic curve ``E`` with full rational 3-torsion,
+        or an elliptic curve ``E`` with full rational 3-torsion,
         and the transformation into Hessian form is computed on the spot
         """
 

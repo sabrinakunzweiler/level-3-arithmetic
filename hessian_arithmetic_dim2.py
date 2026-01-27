@@ -11,11 +11,14 @@ from sage.structure.element import AdditiveGroupElement
 from sage.schemes.projective.projective_space import ProjectiveSpace
 from sage.schemes.projective.projective_point import SchemeMorphism_point_projective_ring
 from sage.schemes.elliptic_curves.ell_generic import EllipticCurve_generic
+from sage.schemes.hyperelliptic_curves.constructor import HyperellipticCurve
 from sage.structure.element import RingElement
 from sage.structure.sage_object import SageObject
 from sage.matrix.constructor import Matrix
 from sage.modules.free_module_element import vector
 from sage.schemes.projective.projective_subscheme import AlgebraicScheme_subscheme_projective
+from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
+
 
 from hessian_arithmetic_dim1 import EllipticCurveHessianForm
 
@@ -64,7 +67,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         if isinstance(args[0], EllipticCurveHessianForm):
             self._reducible = True
             E1, E2 = args
-            self._ellitpic_curves = (E1, E2)
+            self._elliptic_curves = (E1, E2)
             K = E1._base_ring
             assert E1._a == K.one()
             assert E2._a == K.one()
@@ -189,7 +192,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         If `self` is a product of elliptic curves E1 x E2, return these elliptic curves.
         """
         try:
-            return self._ellitpic_curves
+            return self._elliptic_curves
         except:
             if not self.is_reducible():
                 raise ValueError("The abelian surface is not reducible.")
@@ -203,7 +206,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             H1 = EllipticCurveHessianForm(d1)
             H2 = EllipticCurveHessianForm(d2)
 
-            self._ellitpic_curves = (H1,H2)
+            self._elliptic_curves = (H1,H2)
             return (H1,H2)
 
 
@@ -342,6 +345,30 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         assert d[3] == d[4] #sanity check
         trafos.append(trafo)
         return AbelianSurfaceHessianFormCompositeHom(trafos)
+    
+    def curve(self):
+        alphas = self._h
+        alpha0 = alphas[0]
+        field = alpha0.parent()
+        
+        R = PolynomialRing(field, 'x')
+        x = R.gen(0)
+
+        [a0,a1,a2,a3,a4] = [alpha/alpha0 for alpha in alphas]
+        H3 = a4*(a2*x**2-a3*x-a1*a4)
+        G3 = ( (a1**3*a4**3 + 3*a1*a2*a3*a4**4 + 2*a2**3*a4**3 + a2**3 + a3**3*a4**3)*x**3
+            + (3*a1**2*a2*a4**5 - 3*a2**2*a3*a4**3 + 3*a1**2*a2*a4**2 - 3*a2**2*a3)*x**2
+        + (-3*a1**2*a3*a4**5 + 3*a2*a3**2*a4**3 - 3*a1**2*a3*a4**2 + 3*a2*a3**2)*x
+        + (-2*a1**3*a4**6 - a1**3*a4**3 + 3*a1*a2*a3*a4**4 + a2**3*a4**3 - a3**3)
+            )
+        lam3 = a1**3*a4**6 - 3*a1*a2*a3*a4**4 + a1**3*a4**3 - a2**3*a4**3 - a3**3*a4**3 - 3*a1*a2*a3*a4 - a2**3 - a3**3
+        C = HyperellipticCurve(lam3*H3**3, G3)
+        return C, (lam3, H3, G3)
+    
+    def absolute_invariants(self):
+        ## todo: check which invariants are bad and which are good in sage
+        return self.curve().absolute_igusa_invariants_wamelen()
+
 
 
 class AbelianSurfaceHessianPoint(SageObject):

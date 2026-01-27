@@ -32,7 +32,7 @@ Phi = compute_isogeny_chain((R,S), (R_9,S_9), k-1, (a,b,c)); Phi
 
 
 # we can push points lothrough the isogeny
-H2,H1 = A._ellitpic_curves
+H2,H1 = A._elliptic_curves
 Rand1 = E1.random_element()
 Rand2 = E2.random_element()
 R1 = H1.map_point(Rand1)
@@ -60,3 +60,30 @@ S12 = A([S2,S1])
 phi_S12 = Phi(S12)
 
 phi_R12 == phi_S12
+
+
+####################################
+####################################
+## trying addition formulas
+
+def random_points():
+    Rand1 = E1.random_element()
+    Rand2 = E2.random_element()
+    R1 = H1.map_point(Rand1)
+    R2 = H2.map_point(Rand2)
+    R12 = A([R2,R1])
+    phi_R12 = Phi(R12)
+    return (Rand1, Rand2, phi_R12)
+
+def get_addition_pair():
+    R1, R2, R12 = random_points()
+    T1, T2, T12 = random_points()
+    RT1 = R1 + T1
+    RT2 = R2 + T2
+    RT1 = H1.map_point(RT1)
+    RT2 = H2.map_point(RT2)
+    RT12 = A([RT2,RT1])
+    phi_RT12 = Phi(RT12)
+    return (R12, T12, phi_RT12)
+
+H = Phi.codomain()
