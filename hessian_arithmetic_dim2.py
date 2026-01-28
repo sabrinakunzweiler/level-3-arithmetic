@@ -392,6 +392,11 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         assert 3*K1 == J(0)
         
         return J
+
+    def igusa_clebsch_invariants(self):
+        ## todo: check which invariants are bad and which are good in sage
+        C, G = self.curve()
+        return C.igusa_clebsch_invariants()
     
     def absolute_invariants(self):
         ## todo: check which invariants are bad and which are good in sage
