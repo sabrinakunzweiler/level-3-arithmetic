@@ -6,6 +6,11 @@ In this module, we implement basic functionality
 to work with elliptic curves in Hesse form, twisted Hesse form,
 and the corresponding Kummer lines.
 
+A reference is our preprint
+
+.. [DecruKunzweiler26] T. Decru and S. Kunzweiler, Tripling on Hessian curves via isogeny
+decomposition
+
 The structure for the Kummer line arithmetic follows
 https://github.com/nicolassarkis/sage/blob/kummer_line/src/sage/schemes/elliptic_curves/kummer_line.py
 
