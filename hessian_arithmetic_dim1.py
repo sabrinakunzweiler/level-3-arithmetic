@@ -187,29 +187,30 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
 
     def __call__(self, coords, check=True):
         r"""
-        Create a point on self from the coordinates.
+        Create a point on self from the coordinates of either the Hessian or 
+        the "base" elliptic curve.
+
+        NOTE: Mapping through the elliptic curve only makes sense if self was 
+        created from an elliptic curve in Weierstrass form.
         """
-        return EllipticCurveHessianPoint(self, coords, check=check)
+        try:
+            _ = self._elliptic_curve(coords)
+            if not self._trafo:
+                raise NotImplementedError
+
+            M = self._trafo
+            x,y,z = M*vector(coords)
+        except TypeError:
+            x,y,z = coords
+
+        return EllipticCurveHessianPoint(self, [x,y,z], check=check)
+
 
     def zero(self):
         """
         Return the neutral element `(0:-1:1)` of the Hessian curve.
         """
         return self._neutral_element
-
-    def map_point(self, P):
-        r"""
-        Map point from the "base" elliptic curve to the curve in Hessian form.
-
-        NOTE: This only makes sense if self was created from an elliptic curve
-        in Weierstrass form.
-        """
-        if not self._trafo:
-            raise NotImplementedError
-
-        M = self._trafo
-        x,y,z = M*vector(P)
-        return self([x,y,z])
 
     def j_invariant(self):
         d = self._d
