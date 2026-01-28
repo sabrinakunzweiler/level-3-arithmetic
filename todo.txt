@@ -1,0 +1,10 @@
+low hanging fruit
+ - some nice functionality H, phi <-- Hessian(E1, E2, kernel) or something like that
+ - additionally, for P1 in E1 and P2 in E2, calling H(P1, P2) should return the right associated point
+ - random sampling (sample on kummer and push back to Hessian)
+
+more difficult
+ - addition on H
+ - morphism between H.jacobian() and H
+ - pairings on H
+ - (2,2)-isogenies
