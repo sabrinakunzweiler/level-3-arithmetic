@@ -357,17 +357,32 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         [a0,a1,a2,a3,a4] = [alpha/alpha0 for alpha in alphas]
         H3 = a4*(a2*x**2-a3*x-a1*a4)
         G3 = ( (a1**3*a4**3 + 3*a1*a2*a3*a4**4 + 2*a2**3*a4**3 + a2**3 + a3**3*a4**3)*x**3
-            + (3*a1**2*a2*a4**5 - 3*a2**2*a3*a4**3 + 3*a1**2*a2*a4**2 - 3*a2**2*a3)*x**2
-        + (-3*a1**2*a3*a4**5 + 3*a2*a3**2*a4**3 - 3*a1**2*a3*a4**2 + 3*a2*a3**2)*x
-        + (-2*a1**3*a4**6 - a1**3*a4**3 + 3*a1*a2*a3*a4**4 + a2**3*a4**3 - a3**3)
+                + (3*a1**2*a2*a4**5 - 3*a2**2*a3*a4**3 + 3*a1**2*a2*a4**2 - 3*a2**2*a3)*x**2
+                + (-3*a1**2*a3*a4**5 + 3*a2*a3**2*a4**3 - 3*a1**2*a3*a4**2 + 3*a2*a3**2)*x
+                + (-2*a1**3*a4**6 - a1**3*a4**3 + 3*a1*a2*a3*a4**4 + a2**3*a4**3 - a3**3)
             )
         lam3 = a1**3*a4**6 - 3*a1*a2*a3*a4**4 + a1**3*a4**3 - a2**3*a4**3 - a3**3*a4**3 - 3*a1*a2*a3*a4 - a2**3 - a3**3
+        
         C = HyperellipticCurve(lam3*H3**3, G3)
-        return C, (lam3, H3, G3)
+        if field.characteristic() == 2:
+            ## todo: add 3-torsion
+            return C
+        
+        # this model is slightly easier to work with
+        C2 = HyperellipticCurve(G3**2 + 4*lam3*H3**3)
+        
+        assert C.absolute_igusa_invariants_wamelen() == C2.absolute_igusa_invariants_wamelen()
+        
+        return C2, (lam3, H3, G3)
+    
+    def jacobian(self):
+        C, G = self.curve()
+        return C.jacobian()
     
     def absolute_invariants(self):
         ## todo: check which invariants are bad and which are good in sage
-        return self.curve().absolute_igusa_invariants_wamelen()
+        C, G = self.curve()
+        return C.absolute_igusa_invariants_wamelen()
 
 
 
