@@ -493,6 +493,9 @@ class AbelianSurfaceHessianPoint(SageObject):
         """
         x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
         return self._parent([x0, x2, x1, x6, x8, x7, x3, x5, x4])
+    
+    def __neg__(self):
+        return self.negate()
 
     def _cubing(self):
         """
