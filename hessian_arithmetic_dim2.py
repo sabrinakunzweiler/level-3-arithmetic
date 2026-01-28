@@ -998,7 +998,7 @@ class HessianOddKummerSurfacePoint(SageObject):
                 return solutions
             else:
                 v = V[0]
-                xx00,x01,x02,x10,x11,x12,x20,x21,x22 = v[x0],v[x1],v[x2],v[x3],v[x4],v[x5],v[x6],v[x7],v[x8]
+                x00,x01,x02,x10,x11,x12,x20,x21,x22 = v[x0],v[x1],v[x2],v[x3],v[x4],v[x5],v[x6],v[x7],v[x8]
                 #x0,x1,x2,x3,x4,x5,x6,x7,x8 = 2*u0, v[u1] + v1, v[u1] - v1, v[u2] + v2, v[u3] + v3, v[u4] + v4, v[u2] - v2, v[u4] - v4, v[u3] - v4
                 solution = A([x00,x01,x02,x10,x11,x12,x20,x21,x22])
                 return solution
