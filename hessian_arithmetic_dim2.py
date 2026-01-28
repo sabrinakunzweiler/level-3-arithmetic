@@ -4,6 +4,7 @@ Abelian surfaces in Hessian form.
 
 import sys
 sys.path.append(".")
+from random import sample
 
 from sage.schemes.generic.morphism import SchemeMorphism
 from sage.structure.element import AdditiveGroupElement
@@ -409,6 +410,16 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         C, G = self.curve()
         return C.absolute_igusa_invariants_wamelen()
 
+    def random_point(self):
+        """
+        Return a random point on the surface.
+        """
+        Q = None
+        K = self.kummer_odd()
+        while Q is None:
+            P = K.random_point()
+            Q = P.lift(all_solutions=True)
+        return sample(Q, 1)[0]
 
 
 class AbelianSurfaceHessianPoint(SageObject):
@@ -905,6 +916,20 @@ class HessianOddKummerSurface(SageObject):
         Create a Kummer point from the coordinates.
         """
         return HessianOddKummerSurfacePoint(self, coords)
+
+    def random_point(self):
+        r"""
+        Samples a random point on the Kummer surface.
+        """
+        roots = []
+        while not roots:
+            fixed_coords = [self._base_ring.random_element() for _ in range(3)]
+            R = PolynomialRing(self._base_ring, "x")
+            x = R.gen()
+            equation = self._defining_equation(fixed_coords + [x])
+            roots = [r for r, _ in equation.roots()]
+        last_coord = sample(roots, 1)[0]
+        return self(fixed_coords + [last_coord])
 
 
 class HessianOddKummerSurfacePoint(SageObject):
