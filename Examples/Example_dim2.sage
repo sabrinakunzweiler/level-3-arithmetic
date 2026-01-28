@@ -2,7 +2,7 @@ from itertools import product
 
 load("isogeny_chain_dim2.sage")
 
-k = 2
+k = 4
 p = 8*3^k - 1
 F1 = GF(p)
 R.<x> = F1[]
@@ -78,14 +78,19 @@ def random_points():
     return (Rand1, Rand2, phi_R12)
 
 def get_addition_pair():
-    R1, R2, R12 = random_points()
-    T1, T2, T12 = random_points()
-    RT1 = R1 + T1
-    RT2 = R2 + T2
-    RT1 = H1.map_point(RT1)
-    RT2 = H2.map_point(RT2)
-    RT12 = A([RT2,RT1])
-    phi_RT12 = Phi(RT12)
+    while True:
+        R1, R2, R12 = random_points()
+        T1, T2, T12 = random_points()
+        RT1 = R1 + T1
+        RT2 = R2 + T2
+        RT1 = H1.map_point(RT1)
+        RT2 = H2.map_point(RT2)
+        RT12 = A([RT2,RT1])
+        phi_RT12 = Phi(RT12)
+    
+        if prod(R12)*prod(T12)*prod(phi_RT12) != 0:
+            break
+    
     return (R12, T12, phi_RT12)
 
 H = Phi.codomain()
@@ -103,72 +108,59 @@ def to_monomials(triple):
                 for n in range(9)
                 for m in range(n, 9) 
                 
-                if (i + j + n + m) in {12, 13, 14, 16, 17, 18, 19} 
+                # if (i + j + n + m) in {12, 13, 14, 16, 17, 18, 19} 
+                if (i + j + n + m) in {10, 11, 12, 13, 14} 
                 
                 ]
     
 
-known_monomials = [
-    [ 4, 8, 0, 0],
-    [ 3, 6, 1, 2],
-    [ 2, 4, 2, 4],
-    [ 1, 2, 3, 6],
-    [ 0, 0, 4, 8],
+R.<xi, xj, xn, xm> = PolynomialRing(Fp, 4) 
+monomials = [[i,j,n,m]
+                for i in range(9)
+                for j in range(i, 9)
+                for n in range(9)
+                for m in range(n, 9) 
+                
+                # if (i + j + n + m) in {12, 13, 14, 16, 17, 18, 19} 
+                if (i + j + n + m) in {10, 11, 12, 13, 14} 
+                
+                ]
+
+def to_known_monomials(triple):
+    # given P = P0, ..., P8
+    # given Q = Q0, ..., Q8
+    # return all monomials of the form Pi*Pj*Qm*Qn
+    P, Q, PQ = triple
     
-    [ 3, 7, 2, 2],
-    [ 5, 8, 0, 1],
-    [ 7, 0, 7, 0],
-    [ 0, 1, 5, 8],
-    [ 2, 2, 3, 7],
-    
-    [ 4, 7, 0, 2],
-    [ 3, 8, 1, 1],
-    ##???    
-     [1, 1, 3, 8],
-     [0, 2, 4, 7],
-     
-    [ 7, 8, 0, 3],
-    [ 6, 6, 1, 5],
-    ##???
-    [1, 5, 6, 6],
-    [0, 3, 7, 8],
-     
-    [ 8, 8, 0, 4],
-    [ 6, 7, 2, 5],
-    [ 4, 6, 4, 6],
-    [ 2, 5, 6, 7],
-    [ 0, 4, 8, 8],
-    
-    
-]
+    return [P[i]*P[j]*Q[n]*Q[m]
+                for i, j, n, m in known_monomials
+                ]
 
 N = len(to_monomials(get_addition_pair())) - 1
 print(f"{N = }")
 U = 9*N
 
+num_samples = 2*N + 300
 
-PQ = [get_addition_pair() for i in range(N+1)]
+PQ = [get_addition_pair() for i in range(num_samples+1)]
 W = [ to_monomials(triple) for triple in PQ]
 V = [ triple[2] for triple in PQ]
-samples = [ (W[i], V[i]) for i in range(N+1) ]
+samples = [ (W[i], V[i]) for i in range(num_samples+1) ]
 
-print("samples ready")
+print(f"{len(samples)} samples ready")
 
 rows = []
+
+# row is a1*(y2 x1) + b1 ( - y1 x1)  + ... + a40 * (y2 x40) + b40 * (- y1 x40)
+
 for x, y in samples:
-    for a in range(9):
-        for b in range(a+1, 9):
-            row = {}
-            for c in range(N):
-                row[a*N + c] = y[b] * x[c]
-                row[b*N + c] = -y[a] * x[c]
-            rows.append(row)
+    row = [ y[1] * xx for xx in x ] + [ -(y[0]) * xx for xx in x]
+    rows.append(row)
 
 print(f"rows = {len(rows)}")
 
-A = Matrix(Fp, len(rows), U, sparse=True)
-for i, row in enumerate(rows):
-    for j, v in row.items():
-        A[i, j] = v
+A = Matrix(Fp, rows)
+
+print("A ready")
 
 K = A.right_kernel()
