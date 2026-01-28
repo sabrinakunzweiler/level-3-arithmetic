@@ -1,6 +1,19 @@
+r"""
+3^n-isogeny computations
+==========================================================================
+
+Here, we provide an algorithm to compute 3^n-isogenies
+between p.p. abelian surfaces in Hesse form.
+This is based on the modules `hessian_arithmetic_dim1`
+and `hessian_arithmetic_dim2`.
+
+
+AUTHORS:
+
+- Sabrina Kunzweiler (2026): initial version
+
 """
-(3^n,3^n) - isogeny computation with domain a product of elliptic curves.
-"""
+
 from hessian_arithmetic_dim1 import *
 from hessian_arithmetic_dim2 import *
 from hessian_morphisms_dim2 import *

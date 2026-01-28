@@ -2,13 +2,15 @@
     3^n-isogenies on elliptic curves in Hessian form and their Kummer lines
     ===============================================================================
 
-    Let E be a curve in twisted Hessian form, i.e. 
-    E: a * X^3 + Y^3 + Z^3 = d * X*Y*Z  
+    In this module, we implement algorithms to compute
+    3-isogenies and 3^n-isogenies on the Kummer line of
+    elliptic curves in twisted Hesse form.
 
-    The projection to the Kummer line is given by 
-    (x : y : z) |-> (x : y + z) = : (x : u)
+    AUTHORS:
 
+    - Sabrina Kunzweiler (2026): initial version
 """
+
 import sys
 sys.path.append(".")
 from hessian_arithmetic_dim1 import *

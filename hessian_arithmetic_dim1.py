@@ -1,9 +1,18 @@
-"""
-Elliptic curves in (twisted) Hessian form, and their Kummer lines.
+r"""
+Elliptic curves in Hesse form
+==========================================================================
 
+In this module, we implement basic functionality
+to work with elliptic curves in Hesse form, twisted Hesse form,
+and the corresponding Kummer lines.
 
-Structure for the Kummer line arithmetic follows
+The structure for the Kummer line arithmetic follows
 https://github.com/nicolassarkis/sage/blob/kummer_line/src/sage/schemes/elliptic_curves/kummer_line.py
+
+
+AUTHORS:
+
+- Sabrina Kunzweiler (2026): initial version
 
 """
 

@@ -1,5 +1,25 @@
-"""
-Abelian surfaces in Hessian form.
+r"""
+Abelian surfaces in Hesse form
+==========================================================================
+
+In this module, we implement basic functionality for
+p.p. abelian surfaces in Hesse form.
+A reference is our preprint
+
+.. [DecruKunzweiler26] T. Decru and S. Kunzweiler, Abelian surfaces in Hesse form
+and explicit isogeny formulas
+
+In particular, our implementation can be used to construct such surfaces,
+either from a product of elliptic curves (in Hesse form), or by specifying
+the defining equations.
+
+Furthermore, one can construct different models of the Kummer surface.
+
+
+AUTHORS:
+
+- Sabrina Kunzweiler (2026): initial version
+
 """
 
 import sys
@@ -24,8 +44,6 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
     r"""
     Abelian surface in Hessian form.
 
-    EXAMPLES:
-
     """
 
     def __init__(self, args, omega=None, OO=None, check=True):
@@ -38,7 +56,6 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         - either args = [d,h] with
             - ``d`` -- tuple containing the coefficients (d0 : ... : d4)
             - ``h`` -- tuple containing the coefficients (h0 : ... : h4)
-            NOTE: It is not checked that the input defines a p.p. abelian surface.
         - or args =[E1,E2] where E1 and E2 are elliptic curves in Hessian form
 
         EXAMPLES::
@@ -571,7 +588,6 @@ class AbelianSurfaceHessianPoint(SageObject):
 
         P = phi(self)
         P = phi_dual(P)
-        #P = P.negate()
         return P
 
     def _add_P1(self):

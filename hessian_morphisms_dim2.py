@@ -1,3 +1,24 @@
+r"""
+Morphisms of abelian surfaces in Hesse form
+==========================================================================
+
+In this module, we implement basic functionality to compute
+certain morphisms of p.p. abelian surfaces in Hesse form.
+A reference is our preprint
+
+.. [DecruKunzweiler26] T. Decru and S. Kunzweiler, Abelian surfaces in Hesse form
+and explicit isogeny formulas
+
+In particular, our implementation can be used to compute 3-isogenies and
+certain isomorphisms / symplectic transformations.
+
+
+AUTHORS:
+
+- Sabrina Kunzweiler (2026): initial version
+
+"""
+
 import sys
 sys.path.append(".")
 
