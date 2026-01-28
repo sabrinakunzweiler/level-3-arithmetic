@@ -1,6 +1,8 @@
+from itertools import product
+
 load("isogeny_chain_dim2.sage")
 
-k = 10
+k = 2
 p = 8*3^k - 1
 F1 = GF(p)
 R.<x> = F1[]
@@ -87,3 +89,86 @@ def get_addition_pair():
     return (R12, T12, phi_RT12)
 
 H = Phi.codomain()
+
+
+def to_monomials(triple):
+    # given P = P0, ..., P8
+    # given Q = Q0, ..., Q8
+    # return all monomials of the form Pi*Pj*Qm*Qn
+    P, Q, PQ = triple
+    
+    return [P[i]*P[j]*Q[n]*Q[m]
+                for i in range(9)
+                for j in range(i, 9)
+                for n in range(9)
+                for m in range(n, 9) 
+                
+                if (i + j + n + m) in {12, 13, 14, 16, 17, 18, 19} 
+                
+                ]
+    
+
+known_monomials = [
+    [ 4, 8, 0, 0],
+    [ 3, 6, 1, 2],
+    [ 2, 4, 2, 4],
+    [ 1, 2, 3, 6],
+    [ 0, 0, 4, 8],
+    
+    [ 3, 7, 2, 2],
+    [ 5, 8, 0, 1],
+    [ 7, 0, 7, 0],
+    [ 0, 1, 5, 8],
+    [ 2, 2, 3, 7],
+    
+    [ 4, 7, 0, 2],
+    [ 3, 8, 1, 1],
+    ##???    
+     [1, 1, 3, 8],
+     [0, 2, 4, 7],
+     
+    [ 7, 8, 0, 3],
+    [ 6, 6, 1, 5],
+    ##???
+    [1, 5, 6, 6],
+    [0, 3, 7, 8],
+     
+    [ 8, 8, 0, 4],
+    [ 6, 7, 2, 5],
+    [ 4, 6, 4, 6],
+    [ 2, 5, 6, 7],
+    [ 0, 4, 8, 8],
+    
+    
+]
+
+N = len(to_monomials(get_addition_pair())) - 1
+print(f"{N = }")
+U = 9*N
+
+
+PQ = [get_addition_pair() for i in range(N+1)]
+W = [ to_monomials(triple) for triple in PQ]
+V = [ triple[2] for triple in PQ]
+samples = [ (W[i], V[i]) for i in range(N+1) ]
+
+print("samples ready")
+
+rows = []
+for x, y in samples:
+    for a in range(9):
+        for b in range(a+1, 9):
+            row = {}
+            for c in range(N):
+                row[a*N + c] = y[b] * x[c]
+                row[b*N + c] = -y[a] * x[c]
+            rows.append(row)
+
+print(f"rows = {len(rows)}")
+
+A = Matrix(Fp, len(rows), U, sparse=True)
+for i, row in enumerate(rows):
+    for j, v in row.items():
+        A[i, j] = v
+
+K = A.right_kernel()

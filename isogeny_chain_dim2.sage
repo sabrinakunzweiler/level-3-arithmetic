@@ -90,6 +90,26 @@ def translate_to_Hessian(basis,k, kernel_scalars):
 
 	return (R,S), (R_9,S_9)
 
+def Hessian(E1, E2, kernel):
+    ## returns the Hessian of E1xE2 fixed by the kernel
+    	# create the Hessian
+	P1,P2,Q1,Q2 = kernel
+ 
+	omega = P1.weil_pairing(Q1,3)^2
+
+	H1 = EllipticCurveHessianForm(E1, basis=[P1,Q1])
+	H2 = EllipticCurveHessianForm(E2, basis=[P2,Q2])
+	A0 = AbelianSurfaceHessianForm([H2,H1], omega=omega^2)
+ 
+	def Phi(P, Q):
+		assert P.curve() == E1
+		assert Q.curve() == E2
+		R1 = H1.map_point(P)
+		R2 = H2.map_point(Q)
+		return A0([R2, R1])
+
+	return A0, Phi
+
 def compute_isogeny_chain(kernel, kernel_aux, n, scalars, auxP=None):
 	"""
 	Compute the (3^n,3^n)-isogeny chain with the given kernel `3*kernel`.

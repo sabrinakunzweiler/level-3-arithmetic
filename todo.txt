@@ -1,12 +1,16 @@
-low hanging fruit
+done:
  - some nice functionality H, phi <-- Hessian(E1, E2, kernel) or something like that
  - additionally, for P1 in E1 and P2 in E2, calling H(P1, P2) should return the right associated point
+
+low hanging fruit
  - similarly for the Hessian H1 of the curve E1, instead of H.map_point(P1) could simply be H(P1)
  - random sampling (sample on kummer and push back to Hessian)
  - pairings of degree 3 together with isotropy test of (3,3)-subgroups
+ - simplyify canonical_isogeny
 
 more difficult
  - addition on H
  - morphism between H.jacobian() and H
+ - given hyperell curve C, return Hessian
  - general degree pairings on H
  - (2,2)-isogenies

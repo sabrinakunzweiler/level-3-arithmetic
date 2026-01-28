@@ -239,6 +239,9 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
         self._phi = AbelianSurfaceHessianFormHom(self, [R1,R2], "isogeny", auxP=auxP)
         return self._phi
+    
+    def dual(self):
+        return self.canonical_isogeny().codomain()
 
     def symplectic_transformation(self, a,b,c):
         """
@@ -366,6 +369,9 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         return lam3, H3, G3
     
     def curve(self):
+        if self.is_reducible():
+            return self.elliptic_curves()
+
         lam3, H3, G3 = self._curve_GH()
         field = lam3.parent()
         C = HyperellipticCurve(lam3*H3**3, G3)
