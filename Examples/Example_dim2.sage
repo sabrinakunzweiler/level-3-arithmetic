@@ -95,55 +95,78 @@ def get_addition_pair():
 
 H = Phi.codomain()
 
-
-def to_monomials(triple):
-    # given P = P0, ..., P8
-    # given Q = Q0, ..., Q8
-    # return all monomials of the form Pi*Pj*Qm*Qn
-    P, Q, PQ = triple
+def zero_monomial(a, b, c, d, e):
+    # want for X_e to also equal say (3, 3)
+    res1 = sum([ divmod(i, 3)[0] for i in [a, b, c, d, e]  ]) 
+    res2 = sum([ divmod(i, 3)[1] for i in [a, b, c, d, e]  ])
     
-    return [P[i]*P[j]*Q[n]*Q[m]
+    return (res1, res2)
+
+def restricted_monomials(restriction):
+    # restriction of the form (e, (R1, R2) )
+    e, (R1, R2) = restriction
+    
+    return [ (i, j, n, m) 
                 for i in range(9)
                 for j in range(i, 9)
                 for n in range(9)
                 for m in range(n, 9) 
-                
-                # if (i + j + n + m) in {12, 13, 14, 16, 17, 18, 19} 
-                if (i + j + n + m) in {10, 11, 12, 13, 14} 
-                
+                if zero_monomial(i, j, n, m, e) == (R1, R2)
                 ]
-    
 
-R.<xi, xj, xn, xm> = PolynomialRing(Fp, 4) 
-monomials = [[i,j,n,m]
+def combined_monomials(list_of_res):
+    total_list = sum(list_of_res, [])
+    return [ (i, j, n, m) 
                 for i in range(9)
                 for j in range(i, 9)
                 for n in range(9)
                 for m in range(n, 9) 
-                
-                # if (i + j + n + m) in {12, 13, 14, 16, 17, 18, 19} 
-                if (i + j + n + m) in {10, 11, 12, 13, 14} 
-                
+                if (i,j,n,m) in total_list
                 ]
 
-def to_known_monomials(triple):
+def point_to_monomials(triple, monomials):
     # given P = P0, ..., P8
     # given Q = Q0, ..., Q8
     # return all monomials of the form Pi*Pj*Qm*Qn
+    # restriction of the form (e, (R1, R2) )
     P, Q, PQ = triple
     
-    return [P[i]*P[j]*Q[n]*Q[m]
-                for i, j, n, m in known_monomials
-                ]
+    return [ P[i]*P[j]*Q[n]*Q[m] 
+                ## if (i, j, n, m) in restriction_monomials else 0
+                for (i, j, n, m) in monomials
+             ]    
+    
+known_from_products = [
+    (0, (3, 3)),
+    (1, (3, 6)),
+    (2, (3, 6)),
+    (3, (6, 3)),
+    (4, (6, 6)),
+    (5, (6, 6)),
+    (6, (6, 3)),
+    (7, (6, 6)),
+    (8, (6, 6)),
+]
 
-N = len(to_monomials(get_addition_pair())) - 1
+# for the first two rows, we need the first two of known_from_products
+monomials_we_want = [ restricted_monomials(known_from_products[0]), restricted_monomials(known_from_products[1]) ]
+res0 = restricted_monomials(known_from_products[0])
+res1 = restricted_monomials(known_from_products[1])
+combined = combined_monomials(monomials_we_want)
+
+N = len(combined) - 1
 print(f"{N = }")
-U = 9*N
 
 num_samples = 2*N + 300
 
+
+## still overdoing something, because now I evaluate (P, Q)
+## in all _combined_ monomials
+## but shoudl do this per PQ_i, right?
+## for example, for PQ_0 we should only evaluate (P, Q) in the res0 monomials (instead of the combined monomials)
 PQ = [get_addition_pair() for i in range(num_samples+1)]
-W = [ to_monomials(triple) for triple in PQ]
+W = [ point_to_monomials(triple, combined) for triple in PQ]
+# W = [ (point_to_monomials(triple, res0), point_to_monomials(triple, res1)) for triple in PQ]
 V = [ triple[2] for triple in PQ]
 samples = [ (W[i], V[i]) for i in range(num_samples+1) ]
 
@@ -155,6 +178,7 @@ rows = []
 
 for x, y in samples:
     row = [ y[1] * xx for xx in x ] + [ -(y[0]) * xx for xx in x]
+    # row = [ y[1] * xx for xx in x[0] ] + [ -(y[0]) * xx for xx in x[1]]
     rows.append(row)
 
 print(f"rows = {len(rows)}")
