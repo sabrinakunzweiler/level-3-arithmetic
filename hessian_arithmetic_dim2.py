@@ -346,7 +346,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         trafos.append(trafo)
         return AbelianSurfaceHessianFormCompositeHom(trafos)
     
-    def curve(self):
+    def _curve_GH(self):
         alphas = self._h
         alpha0 = alphas[0]
         field = alpha0.parent()
@@ -363,21 +363,35 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             )
         lam3 = a1**3*a4**6 - 3*a1*a2*a3*a4**4 + a1**3*a4**3 - a2**3*a4**3 - a3**3*a4**3 - 3*a1*a2*a3*a4 - a2**3 - a3**3
         
+        return lam3, H3, G3
+    
+    def curve(self):
+        lam3, H3, G3 = self._curve_GH()
+        field = lam3.parent()
         C = HyperellipticCurve(lam3*H3**3, G3)
+        
         if field.characteristic() == 2:
             ## todo: add 3-torsion
             return C
         
         # this model is slightly easier to work with
         C2 = HyperellipticCurve(G3**2 + 4*lam3*H3**3)
-        
         assert C.absolute_igusa_invariants_wamelen() == C2.absolute_igusa_invariants_wamelen()
         
-        return C2, (lam3, H3, G3)
+        return C2
+
     
     def jacobian(self):
-        C, G = self.curve()
-        return C.jacobian()
+        # returns the Jacobian together with the (3,3)-kernel
+        lam3, H3, G3 = self._curve_GH()
+        C = self.curve()
+        J = C.jacobian()
+        
+        #
+        K1 = J(H3, G3)
+        assert 3*K1 == J(0)
+        
+        return J
     
     def absolute_invariants(self):
         ## todo: check which invariants are bad and which are good in sage
