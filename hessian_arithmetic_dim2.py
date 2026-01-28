@@ -733,7 +733,7 @@ class HessianEvenKummerSurface(SageObject):
 
     def __repr__(self):
         r"""
-        String representation of the Kummer line.
+        String representation of the Kummer surface.
         """
         return f"Even model of the Kummer surface of {self._hessian_form}"
 
@@ -907,7 +907,7 @@ class HessianOddKummerSurface(SageObject):
 
     def __repr__(self):
         r"""
-        String representation of the Kummer line.
+        String representation of the Kummer surface.
         """
         return f"Odd model of the Kummer surface of {self._hessian_form}"
 
