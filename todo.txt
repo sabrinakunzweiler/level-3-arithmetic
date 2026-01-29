@@ -8,9 +8,13 @@ low hanging fruit
  - pairings of degree 3 together with isotropy test of (3,3)-subgroups
  - simplyify canonical_isogeny
 
+bit difficult
+ - lift_x analogue?
+
 more difficult
  - addition on H
  - morphism between H.jacobian() and H
  - given hyperell curve C, return Hessian
+ - cubical arithmetic
  - general degree pairings on H
  - (2,2)-isogenies
