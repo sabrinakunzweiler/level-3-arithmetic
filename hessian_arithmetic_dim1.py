@@ -212,6 +212,21 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         """
         return self._neutral_element
 
+    def map_point(self, P):
+        r"""
+        Map point from the "base" elliptic curve to the curve in Hessian form.
+
+        NOTE: This only makes sense if self was created from an elliptic curve
+        in Weierstrass form.
+        Superseded by simply calling H(P) as implemented in __call__
+        """
+        if not self._trafo:
+            raise NotImplementedError
+
+        M = self._trafo
+        x,y,z = M*vector(P)
+        return self([x,y,z])
+
     def j_invariant(self):
         d = self._d
         a = self._a
