@@ -71,16 +71,16 @@ def translate_to_Hessian(basis,k, kernel_scalars):
 
 	a,b,c = kernel_scalars
 
-	R1 = H1.map_point(P1+a*Q1)
-	R2 = H2.map_point(b*Q2)
-	S1 = H1.map_point(b*Q1)
-	S2 = H2.map_point(P2+c*Q2)
+	R1 = H1(P1+a*Q1)
+	R2 = H2(b*Q2)
+	S1 = H1(b*Q1)
+	S2 = H2(P2+c*Q2)
 
 	#auxiliary 9 -torsion points
-	R1_9 = H1.map_point(3^(k-2)*(P1+a*Q1))
-	R2_9 = H2.map_point(3^(k-2)*(b*Q2))
-	S1_9 = H1.map_point(3^(k-2)*(b*Q1))
-	S2_9 = H2.map_point(3^(k-2)*(P2+c*Q2))
+	R1_9 = H1(3^(k-2)*(P1+a*Q1))
+	R2_9 = H2(3^(k-2)*(b*Q2))
+	S1_9 = H1(3^(k-2)*(b*Q1))
+	S2_9 = H2(3^(k-2)*(P2+c*Q2))
 
 
 	R = A0([R2,R1])

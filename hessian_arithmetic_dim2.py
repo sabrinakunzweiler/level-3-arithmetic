@@ -702,6 +702,13 @@ class AbelianSurfaceHessianPoint(SageObject):
         parent = self._parent
         omega = parent._omega
         return parent([x0,x1,x2,omega*x3,omega*x4,omega*x5,omega**2*x6,omega**2*x7,omega**2*x8])
+    
+    def normalize(self):
+        x0 = self._coords[0]
+        if x0 != 0:
+            return self._parent([xi / x0 for xi in self._coords])
+        
+        raise NotImplementedError("Not yet implemented")
 
 
 class HessianEvenKummerSurface(SageObject):
