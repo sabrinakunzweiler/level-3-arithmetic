@@ -349,8 +349,107 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         assert d[3] == d[4] #sanity check
         trafos.append(trafo)
         return AbelianSurfaceHessianFormCompositeHom(trafos)
-    
+        
     def _curve_GH(self):
+        '''
+            Formulas from Nasserden's thesis to recover the G, H polynomials
+            for a (3,3)-torsion point on Jac(C). The polynomials G and H also define C
+        '''
+        alphas = self._h
+        alpha0 = alphas[0]
+        field = alpha0.parent()
+        
+        R = PolynomialRing(field, 'x')
+        x = R.gen(0)
+
+        [a0,a1,a2,a3,a4] = [alpha0] + [alpha/2 for alpha in alphas[1:]]        
+        
+        inv2 = field(2)**-1
+        assert 2*inv2 == 1
+        
+        #from Nasserden's thesis p.57
+        G2 =   (( -inv2*a0**3*a2**3 - inv2*a0**3*a4**3 - 8*a1**3*a4**3 ) / a0 *x**3
+        + (  inv2*3*a0**2*a2**2*a3 - 6*a1**2*a2*a4**2 ) * x**2
+        + ( -inv2*3*a0**2*a2*a3**2 + 6*a1**2*a3*a4**2 ) * x
+        + ( inv2*a0**2*a3**3 - inv2*a0**2*a4**3 ))
+
+        H2 = x**2 + inv2 * a0 * a2 / ( a1*a4 )*x - inv2 * a0*a3 / (a1 * a4)
+        lam2 = ( -8 * a0**3 * a1**3 * a4**6 - 64 * a1**6 * a4**6 ) / a0**2        
+
+        return lam2, H2, G2
+    
+    def _curve_GH_2(self):
+        '''
+            Formulas from Nasserden's thesis to recover the G, H polynomials
+            for a (3,3)-torsion point on Jac(C). The polynomials G and H also define C
+        '''
+        alphas = self._h
+        alpha0 = alphas[0]
+        field = alpha0.parent()
+        
+        R = PolynomialRing(field, 'x')
+        x = R.gen(0)
+
+        [a0,a1,a2,a3,a4] = [alpha0] + [alpha/2 for alpha in alphas[1:]]        
+        
+        inv2 = field(2)**-1
+        assert 2*inv2 == 1
+        
+        #from Nasserden's thesis p.57
+        G3 =  (( -inv2 * a0**2 * a2**3 + inv2 * a0**2 * a4**3 ) * x**3
+        + (  inv2 * 3 * a0**2 * a2**2 * a3 - 6 * a1**2 * a2 * a4**2) * x**2
+        + ( -inv2 * 3 * a0**2 * a2 * a3**2 + 6 * a1**2 * a3 * a4**2 ) * x
+        + ( inv2 * a0**3 * a3**3 + inv2 * a0**3 * a4**3 + 8 * a1**3 * a4**3 ) / a0)
+        H3 = x**2 - a3/a2 * x - 2 * a1*a4 / (a0 * a2)
+        lam3 = a0**4 * a2**3 * a4**3 + 8 * a0 * a1**3 * a2**3 * a4**3
+
+        return lam3, H3, G3
+        
+    def curve(self):
+        '''
+            Returns hyperelliptic curve y^2 = f(x) associated to the Hessian
+            using the associated G, H polynomials.
+        '''
+        
+        if self.is_reducible():
+            return self.elliptic_curves()
+        
+        lam2, H2, G2 = self._curve_GH_char_2()
+        field = lam2.parent()
+        C = HyperellipticCurve(lam2*H2**3, G2)
+        
+        if field.characteristic() == 2:
+            return C
+        
+        lam, H, G = self._curve_GH()
+        
+        # this model is slightly easier to work with
+        C2 = HyperellipticCurve(G**2 + lam*H**3)
+        assert C.absolute_igusa_invariants_wamelen() == C2.absolute_igusa_invariants_wamelen()
+        
+        return C2
+    
+    def alpha_curve(self):
+        alphas = self._h
+        alpha0 = alphas[0]
+        field = alpha0.parent()
+        
+        R = PolynomialRing(field, 'x')
+        x = R.gen(0)
+
+        [a0,a1,a2,a3,a4] = [alpha0] + [alpha/2 for alpha in alphas[1:]]        
+        f = (1/field(4)*a0**4*a2**6 + 1/field(2)*a0**4*a2**3*a4**3 + 1/field(4)*a0**4*a4**6 + 8*a0*a1**3*a2**3*a4**3)*x**6  + (-3/field(2)*a0**4*a2**5*a3 - 3/field(2)*a0**4*a2**2*a3*a4**3 + 6*a0**2*a1**2*a2**4*a4**2 - 6*a0**2*a1**2*a2*a4**5 - 24*a0*a1**3*a2**2*a3*a4**3)*x**5 + (15/field(4)*a0**4*a2**4*a3**2 + 3/field(2)*a0**4*a2*a3**2*a4**3 - 6*a0**3*a1*a2**2*a4**4 - 24*a0**2*a1**2*a2**3*a3*a4**2 + 6*a0**2*a1**2*a3*a4**5 + 24*a0*a1**3*a2*a3**2*a4**3 - 12*a1**4*a2**2*a4**4)*x**4 + (-5*a0**4*a2**3*a3**3 - 1/field(2)*a0**4*a2**3*a4**3 - 1/field(2)*a0**4*a3**3*a4**3 + 1/field(2)*a0**4*a4**6 + 12*a0**3*a1*a2*a3*a4**4 + 36*a0**2*a1**2*a2**2*a3**2*a4**2 - 8*a0*a1**3*a2**3*a4**3 - 8*a0*a1**3*a3**3*a4**3 + 8*a0*a1**3*a4**6 + 24*a1**4*a2*a3*a4**4)*x**3 + (15/field(4)*a0**4*a2**2*a3**4 + 3/field(2)*a0**4*a2**2*a3*a4**3 - 6*a0**3*a1*a3**2*a4**4 - 24*a0**2*a1**2*a2*a3**3*a4**2 + 6*a0**2*a1**2*a2*a4**5 + 24*a0*a1**3*a2**2*a3*a4**3 - 12*a1**4*a3**2*a4**4)*x**2 + (-3/field(2)*a0**4*a2*a3**5 - 3/field(2)*a0**4*a2*a3**2*a4**3 + 6*a0**2*a1**2*a3**4*a4**2 - 6*a0**2*a1**2*a3*a4**5 - 24*a0*a1**3*a2*a3**2*a4**3)*x + 1/field(4)*a0**4*a3**6 + 1/field(2)*a0**4*a3**3*a4**3 + 1/field(4)*a0**4*a4**6 + 8*a0*a1**3*a3**3*a4**3
+        
+        return HyperellipticCurve(f)
+    
+    def _curve_GH_char_2(self):
+        '''
+            Returns the polynomials G and H associated to the hyperelliptic curve.
+            In general, a hyperelliptic curve y^2 = f(x) whose Jac has rational 3-torsion
+            can be written with such a G and H
+            
+            NOTE: for char 2, we use an older formula, where it is unclear what the associated (3,3)-kernel is
+        '''
         alphas = self._h
         alpha0 = alphas[0]
         field = alpha0.parent()
@@ -359,46 +458,34 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         x = R.gen(0)
 
         [a0,a1,a2,a3,a4] = [alpha/alpha0 for alpha in alphas]
-        H3 = a4*(a2*x**2-a3*x-a1*a4)
-        G3 = ( (a1**3*a4**3 + 3*a1*a2*a3*a4**4 + 2*a2**3*a4**3 + a2**3 + a3**3*a4**3)*x**3
+        H = a4*(a2*x**2-a3*x-a1*a4)
+        G = ( (a1**3*a4**3 + 3*a1*a2*a3*a4**4 + 2*a2**3*a4**3 + a2**3 + a3**3*a4**3)*x**3
                 + (3*a1**2*a2*a4**5 - 3*a2**2*a3*a4**3 + 3*a1**2*a2*a4**2 - 3*a2**2*a3)*x**2
                 + (-3*a1**2*a3*a4**5 + 3*a2*a3**2*a4**3 - 3*a1**2*a3*a4**2 + 3*a2*a3**2)*x
                 + (-2*a1**3*a4**6 - a1**3*a4**3 + 3*a1*a2*a3*a4**4 + a2**3*a4**3 - a3**3)
             )
-        lam3 = a1**3*a4**6 - 3*a1*a2*a3*a4**4 + a1**3*a4**3 - a2**3*a4**3 - a3**3*a4**3 - 3*a1*a2*a3*a4 - a2**3 - a3**3
+        lam = a1**3*a4**6 - 3*a1*a2*a3*a4**4 + a1**3*a4**3 - a2**3*a4**3 - a3**3*a4**3 - 3*a1*a2*a3*a4 - a2**3 - a3**3
         
-        return lam3, H3, G3
-    
-    def curve(self):
-        if self.is_reducible():
-            return self.elliptic_curves()
-
-        lam3, H3, G3 = self._curve_GH()
-        field = lam3.parent()
-        C = HyperellipticCurve(lam3*H3**3, G3)
-        
-        if field.characteristic() == 2:
-            ## todo: add 3-torsion
-            return C
-        
-        # this model is slightly easier to work with
-        C2 = HyperellipticCurve(G3**2 + 4*lam3*H3**3)
-        assert C.absolute_igusa_invariants_wamelen() == C2.absolute_igusa_invariants_wamelen()
-        
-        return C2
-
+        return lam, H, G
     
     def jacobian(self):
         # returns the Jacobian together with the (3,3)-kernel
-        lam3, H3, G3 = self._curve_GH()
+        lam1, H1, G1 = self._curve_GH()
+        lam2, H2, G2 = self._curve_GH_2()
+        
         C = self.curve()
         J = C.jacobian()
         
-        #
-        K1 = J(H3, G3)
+        K1 = J(H1, G1)          # sage trick: 4*K1 gives nicer representation
+        K2 = J(H2, G2)          # sage trick: 4*K2 gives nicer representation
         assert 3*K1 == J(0)
+        assert 3*K2 == J(0)
         
-        return J
+        assert Set([ a*K1 + b*K2 for a in range(3) for b in range(3) ]).cardinality() == 9
+        #TODO verify trivial pairing
+        
+        kernel = [K1, K2]
+        return J, kernel
 
     def igusa_clebsch_invariants(self):
         ## todo: check which invariants are bad and which are good in sage
