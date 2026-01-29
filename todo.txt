@@ -2,6 +2,7 @@ done:
  - some nice functionality H, phi <-- Hessian(E1, E2, kernel) or something like that
  - additionally, for P1 in E1 and P2 in E2, calling H(P1, P2) should return the right associated point
  - similarly for the Hessian H1 of the curve E1, instead of H.map_point(P1) could simply be H(P1)
+ - return associated kernel together with jacobian from hesse
 
 low hanging fruit
  - random sampling (sample on kummer and push back to Hessian)
