@@ -662,7 +662,7 @@ class HessianEvenKummerSurface(SageObject):
         P4.inject_variables()
         self._ambient_space = P4
         h0,h1,h2,h3,h4 = self._h
-        self._quadric = U0*(h0**2*U0 + h1**2*U1 + h2**2*U2 + h3**2*U3 + h4**2*U4) + 2*h0*(h1*U1**2 + h2*U2**2 + h3*U3**2 + h4*U4**2) +  2*((h3*h4)*U1*U2 + (h2*h4)*U1*U3 + (h1*h4)*U2*U3 + (h2*h3)*U1*U4 + (h1*h3)*U2*U4 + (h1*h2)*U3*U4)
+        self._quadric = U0*(2*h0**2*U0 + h1**2*U1 + h2**2*U2 + h3**2*U3 + h4**2*U4) + h0*(h1*U1**2 + h2*U2**2 + h3*U3**2 + h4*U4**2) +  ((h3*h4)*U1*U2 + (h2*h4)*U1*U3 + (h1*h4)*U2*U3 + (h2*h3)*U1*U4 + (h1*h3)*U2*U4 + (h1*h2)*U3*U4)
         self._cubic = None #TODO: compute the equation for the cubic equation
 
 

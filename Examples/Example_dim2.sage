@@ -40,9 +40,10 @@ R2 = H2.map_point(Rand2)
 R12 = A([R2,R1]);
 phi_R12 = Phi(R12)
 
+
 # implicit test (note that addition on the Hessian is not implemented)
 # R12 + first kernel generator
-Test1 = Rand1 + 3*(P1 + c*Q1)
+Test1 = Rand1 + 3*(P1 + a*Q1)
 Test2 = Rand2 + 3*b*Q2
 T1 = H1.map_point(Test1)
 T2 = H2.map_point(Test2)
@@ -53,7 +54,7 @@ phi_R12 == phi_T12
 
 # R12 + second kernel generator
 Test1 = Rand1 + 3*(b*Q1)
-Test2 = Rand2 + 3*(P2 + a*Q2)
+Test2 = Rand2 + 3*(P2 + c*Q2)
 S1 = H1.map_point(Test1)
 S2 = H2.map_point(Test2)
 S12 = A([S2,S1])
