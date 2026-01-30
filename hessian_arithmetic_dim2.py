@@ -13,6 +13,7 @@ from sage.schemes.projective.projective_space import ProjectiveSpace
 from sage.schemes.projective.projective_point import SchemeMorphism_point_projective_ring
 from sage.schemes.elliptic_curves.ell_generic import EllipticCurve_generic
 from sage.schemes.hyperelliptic_curves.constructor import HyperellipticCurve
+from sage.sets.set import Set
 from sage.structure.element import RingElement
 from sage.structure.sage_object import SageObject
 from sage.matrix.constructor import Matrix

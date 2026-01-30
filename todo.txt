@@ -3,9 +3,9 @@ done:
  - additionally, for P1 in E1 and P2 in E2, calling H(P1, P2) should return the right associated point
  - similarly for the Hessian H1 of the curve E1, instead of H.map_point(P1) could simply be H(P1)
  - return associated kernel together with jacobian from hesse
+ - random sampling (sample on kummer and push back to Hessian)
 
 low hanging fruit
- - random sampling (sample on kummer and push back to Hessian)
  - pairings of degree 3 together with isotropy test of (3,3)-subgroups
  - simplyify canonical_isogeny
 
