@@ -317,7 +317,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             h = A._h
             assert all([hi!=0 for hi in h])
             trafos.append(trafo)
-        #any singularity of type (b) can be transformed to [1,-1,-1,-om^2,-om]
+        #any singularity of type (b) can be transformed to [1,-1,-1,-om**2,-om]
         if h[0] + h[1] == 0:
             a = 0
         elif h[0] + omega*h[1] == 0:
@@ -662,8 +662,9 @@ class HessianEvenKummerSurface(SageObject):
         P4.inject_variables()
         self._ambient_space = P4
         h0,h1,h2,h3,h4 = self._h
+        # Note: computation of the quadric and cubic follows Bruce Hunt : The geometry of some special arithmetic quotients, Section 5.3.3
         self._quadric = U0*(2*h0**2*U0 + h1**2*U1 + h2**2*U2 + h3**2*U3 + h4**2*U4) + h0*(h1*U1**2 + h2*U2**2 + h3*U3**2 + h4*U4**2) +  ((h3*h4)*U1*U2 + (h2*h4)*U1*U3 + (h1*h4)*U2*U3 + (h2*h3)*U1*U4 + (h1*h3)*U2*U4 + (h1*h2)*U3*U4)
-        self._cubic = None #TODO: compute the equation for the cubic equation
+        self._cubic = h0*(4*U0**3 + U1**3 + U2**3 + U3**3 + U4**3) + 3*U0*(h1*U1**2 + h2*U2**2 + h3*U3**2 + h4*U4**2)  + 3*(h1*U2*U3*U4 + h2*U1*U3*U4 + h3*U1*U2*U4 + h4*U1*U2*U3)
 
 
     def __repr__(self):
@@ -718,7 +719,7 @@ class HessianEvenKummerSurfacePoint(SageObject):
 
         if check:
             assert parent._quadric(u0,u1,u2,u3,u4) == 0
-            assert True #TODO: check that the cubic equation vanishes
+            assert parent._cubic(u0,u1,u2,u3,u4) == 0
         self._coords = (u0,u1,u2,u3,u4)
 
 

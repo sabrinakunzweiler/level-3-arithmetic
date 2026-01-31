@@ -64,7 +64,7 @@ def translate_to_Hessian(basis,k, kernel_scalars):
 
 	OUTPUT:
 	- Points R,S in A[3^k], where A is the Hessian form of E1 x E2,
-	  and R1,R2 generate <(P1 + c*Q1, b*Q2),(b*Q1, P2 + a*Q2)>
+	  and R,S generate <(P1 + c*Q1, b*Q2),(b*Q1, P2 + a*Q2)>
 	- Points R' =3^(k-2)*R, S' = 3^(k-2)*S: auxiliary 9-torsion points
 	"""
 
