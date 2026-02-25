@@ -250,14 +250,14 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         """
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
 
-        if R1 is None or R2 is None:
-            _, _, R1, R2 = self.covering_basis()
+        try:
+            return self._phi
+        except:
+            if R1 is None or R2 is None:
+                _, _, R1, R2 = self.covering_basis()
 
-        self._phi = AbelianSurfaceHessianFormHom(self, [R1, R2], "isogeny", auxP=auxP)
-        return self._phi
-
-        self._phi = AbelianSurfaceHessianFormHom(self, [R1,R2], "isogeny", auxP=auxP)
-        return self._phi
+            self._phi = AbelianSurfaceHessianFormHom(self, [R1, R2], "isogeny", auxP=auxP)
+            return self._phi
     
     def dual(self):
         return self.canonical_isogeny().codomain()
