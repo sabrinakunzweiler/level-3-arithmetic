@@ -2,7 +2,7 @@ from itertools import product
 
 load("isogeny_chain_dim2.sage")
 
-k = 4
+k = 10
 p = 8*3^k - 1
 F1 = GF(p)
 R.<x> = F1[]
