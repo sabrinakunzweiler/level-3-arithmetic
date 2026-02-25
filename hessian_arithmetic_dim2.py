@@ -557,80 +557,89 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             returns the canonical basis P1, P2, Q1, Q2
             with respect to which the hessian is defined
         """
-        Z = self._neutral_element
-        return (Z._add_P1(), Z._add_P2(), Z._add_Q1(), Z._add_Q2())
+        try:
+            return self._canonical_basis
+        except:
+            Z = self._neutral_element
+            self._canonical_basis = (Z._add_P1(), Z._add_P2(), Z._add_Q1(), Z._add_Q2())
+            return self._canonical_basis
     
     def covering_basis(self):
         """
             returns a basis for the nine torsion R1, R2, S1, S2
             above P1, P2, Q1, Q2, assuming rational nine torsion is available
         """
-        p = self._base_ring.characteristic()
         
-        if not ((p+1)*self.random_point()).is_zero():
-            raise NotImplementedError("we assume exponent p+1 for the group structure")
+        try:
+            return self._covering_basis
+        except:
+            p = self._base_ring.characteristic()
             
-        P1, P2, Q1, Q2 = self.canonical_basis()
+            if not ((p+1)*self.random_point()).is_zero():
+                raise NotImplementedError("we assume exponent p+1 for the group structure")
+                
+            P1, P2, Q1, Q2 = self.canonical_basis()
 
-        three_torsion_dictionairy = {}
+            three_torsion_dictionairy = {}
 
-        for a, b, c, d in product(range(3), repeat=4):
-            P = a*P1 + b*P2 + c*Q1 + d*Q2
-            P = P.normalize()
-            three_torsion_dictionairy[tuple(P)] = (a, b, c, d)
+            for a, b, c, d in product(range(3), repeat=4):
+                P = a*P1 + b*P2 + c*Q1 + d*Q2
+                P = P.normalize()
+                three_torsion_dictionairy[tuple(P)] = (a, b, c, d)
 
-        def _decompose(R):
-            R = tuple(R.normalize())
-            if R in three_torsion_dictionairy:
-                return three_torsion_dictionairy[R]
-            else:
-                raise ValueError("Point not in dictionary")
-            
-        def _nine_torsion():
-            kill = (p + 1) // 9
-            while True:
-                R = kill*self.random_point()
-                if not (3*R).is_zero() and (9*R).is_zero():
-                    break
-            
-            return R
+            def _decompose(R):
+                R = tuple(R.normalize())
+                if R in three_torsion_dictionairy:
+                    return three_torsion_dictionairy[R]
+                else:
+                    raise ValueError("Point not in dictionary")
+                
+            def _nine_torsion():
+                kill = (p + 1) // 9
+                while True:
+                    R = kill*self.random_point()
+                    if not (3*R).is_zero() and (9*R).is_zero():
+                        break
+                
+                return R
 
-        def _nine_basis():
-            R = _nine_torsion()
-            dec = _decompose(3*R)
-
-            basis = [R]
-            decs = [dec]
-            
-            matrix = Matrix(GF(3), decs)
-            
-            while matrix.rank() < 4:
+            def _nine_basis():
                 R = _nine_torsion()
                 dec = _decompose(3*R)
+
+                basis = [R]
+                decs = [dec]
                 
-                if dec not in matrix.row_space():
-                    basis.append(R)
-                    decs.append(dec)
-                    decompositions = [_decompose(3 * R) for R in basis]
-                    matrix = Matrix(GF(3), decs)
+                matrix = Matrix(GF(3), decs)
+                
+                while matrix.rank() < 4:
+                    R = _nine_torsion()
+                    dec = _decompose(3*R)
+                    
+                    if dec not in matrix.row_space():
+                        basis.append(R)
+                        decs.append(dec)
+                        decompositions = [_decompose(3 * R) for R in basis]
+                        matrix = Matrix(GF(3), decs)
 
-            return basis, matrix
+                return basis, matrix
 
-        def _find_above(basis, matrix, target):
-            lincomb = matrix.solve_left(vector(GF(3),target))
-            res = basis[0]._parent.zero()
-            for i in range(4):
-                res += ZZ(lincomb[i])*basis[i]
-            
-            return res
-       
-        basis, matrix = _nine_basis()
-        R1 = _find_above(basis, matrix, [1, 0, 0, 0])
-        R2 = _find_above(basis, matrix, [0, 1, 0, 0])
-        S1 = _find_above(basis, matrix, [0, 0, 1, 0])
-        S2 = _find_above(basis, matrix, [0, 0, 0, 1])
+            def _find_above(basis, matrix, target):
+                lincomb = matrix.solve_left(vector(GF(3),target))
+                res = basis[0]._parent.zero()
+                for i in range(4):
+                    res += ZZ(lincomb[i])*basis[i]
+                
+                return res
         
-        return (R1, R2, S1, S2)
+            basis, matrix = _nine_basis()
+            R1 = _find_above(basis, matrix, [1, 0, 0, 0])
+            R2 = _find_above(basis, matrix, [0, 1, 0, 0])
+            S1 = _find_above(basis, matrix, [0, 0, 1, 0])
+            S2 = _find_above(basis, matrix, [0, 0, 0, 1])
+            
+            self._covering_basis = (R1, R2, S1, S2)
+            return self._covering_basis
 
 class AbelianSurfaceHessianPoint(SageObject):
     r"""
