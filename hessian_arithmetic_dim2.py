@@ -172,6 +172,14 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         """
         return self._neutral_element
 
+    def short_zero(self):
+        """
+        Return (t0 : ... t4)
+        """
+        
+        t0, t1, _, t2, t3, t4, _, _, _ = self._neutral_element
+        return (t0, t1, t2, t3, t4)
+
     def is_reducible(self):
         """
         Return `True` if self is the product of two elliptic curves.
@@ -510,6 +518,28 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         return sample(Q, 1)[0]
 
 
+    def addition_matrix(self):
+        try:
+            return self._add_M
+        except:
+            # Marc's numbering
+            t0, t1, t3, t4, t5 = self.short_zero() 
+
+            c0 = -t0*t1**3*t3**2 - t0*t3**2*t4**3 + t0**3*t1*t4*t5 + 2*t1*t3**3*t4*t5 - t0*t3**2*t5**3
+            c1 = t0*t1*t3*t4**3 - t1**2*t3**2*t4*t5 - t0**2*t4**2*t5**2 + t0*t1*t3*t5**3
+            c2 = t0*t1**3*t3*t4 - t1*t3**2*t4**2*t5 - t0**2*t1**2*t5**2 + t0*t3*t4*t5**3
+            c3 = -t0**2*t1**2*t4**2 + t0*t1**3*t3*t5 + t0*t3*t4**3*t5 - t1*t3**2*t4*t5**2
+            c5 = -t0*t1**2*t3**3 - t0*t1**2*t4**3 + t0**3*t3*t4*t5 + 2*t1**3*t3*t4*t5 - t0*t1**2*t5**3
+            c6 = t0*t1*t3**3*t4 - t1**2*t3*t4**2*t5 - t0**2*t3**2*t5**2 + t0*t1*t4*t5**3
+            c7 = -t0**2*t3**2*t4**2 + t0*t1*t3**3*t5 + t0*t1*t4**3*t5 - t1**2*t3*t4*t5**2
+            c10 = -t0*t1**3*t4**2 - t0*t3**3*t4**2 + t0**3*t1*t3*t5 + 2*t1*t3*t4**3*t5 - t0*t4**2*t5**3
+            c11 = -t0**2*t1**2*t3**2 + t0*t1**3*t4*t5 + t0*t3**3*t4*t5 - t1*t3*t4**2*t5**2
+            c15 = t0**3*t1*t3*t4 - t0*t1**3*t5**2 - t0*t3**3*t5**2 - t0*t4**3*t5**2 + 2*t1*t3*t4*t5**3
+
+            # addition matrix
+            self._add_M = Matrix(self.base_ring(), [[c5,c1,c6,c7],[c1,c0,c2,c3],[c6,c2,c10,c11],[c7,c3,c11,c15]])
+            return self._add_M
+
 class AbelianSurfaceHessianPoint(SageObject):
     r"""
     Class for representing points on an Abelian surface in
@@ -585,6 +615,12 @@ class AbelianSurfaceHessianPoint(SageObject):
         P = P8(self._coords)
         Q = P8(other._coords)
         return P == Q
+
+    def is_zero(self):
+        """
+        Check equality with zero
+        """
+        return self == self._parent.zero()
 
     def negate(self):
         """
@@ -798,6 +834,49 @@ class AbelianSurfaceHessianPoint(SageObject):
         
         raise NotImplementedError("Not yet implemented")
 
+    def vector_form(self):
+        A0, A1, A2, A3, A4, A5, A6, A7, A8 = self
+        VA0 = vector([A1*A2, A3*A6, A4*A8, A5*A7])
+        VA1 = vector([A0*A1, A5*A8, A3*A7, A4*A6])
+        VA2 = vector([A0*A2, A4*A7, A5*A6, A3*A8])
+        VA3 = vector([A7*A8, A0*A3, A1*A5, A2*A4])
+        VA4 = vector([A6*A7, A5*A2, A0*A4, A1*A3])
+        VA5 = vector([A6*A8, A4*A1, A2*A3, A0*A5])
+        VA6 = vector([A4*A5, A0*A6, A2*A7, A1*A8])
+        VA7 = vector([A3*A4, A2*A8, A1*A6, A0*A7])
+        VA8 = vector([A3*A5, A1*A7, A0*A8, A2*A6])
+
+        return [VA0,VA1,VA2,VA3,VA4,VA5,VA6,VA7,VA8]
+    
+    def __add__(self, other):
+        # TODO: add input sanity
+        assert self._parent == other._parent
+        mat = self._parent.addition_matrix()
+        vec1, vec2 = self.vector_form(), other.vector_form()
+        result = []
+        for i in range(9):
+            result.append(vec2[i] * mat * vec1[i])
+
+        return self._parent(result)       
+
+    def __rmul__(self, n):
+        """
+        Scalar multiplication by an integer n.
+        """
+
+        if n == 0:
+            return self._parent.zero()
+        if n < 0:
+            return -self.__rmul__(-n)
+
+        result = self._parent.zero()
+        temp = self
+        while n > 0:
+            if n % 2 == 1:
+                result += temp
+            temp += temp
+            n //= 2
+        return result
 
 class HessianEvenKummerSurface(SageObject):
     r"""

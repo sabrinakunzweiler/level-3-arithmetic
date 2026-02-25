@@ -63,3 +63,13 @@ phi_S12 = Phi(S12)
 
 assert phi_R12 == phi_T12
 assert phi_R12 == phi_S12
+
+
+H = Phi.codomain()
+P = H.random_element()
+
+# this works
+Q = P + P
+
+# this should be zero
+assert (p+1)*P == H.zero()
