@@ -862,7 +862,10 @@ class AbelianSurfaceHessianPoint(SageObject):
         try:
             phi = self._parent._phi
         except:
-            raise ValueError("The 3-isogeny has not yet been created")
+            # warning: slow
+            self._parent._phi = self._parent.canonical_isogeny()
+            phi = self._parent._phi
+            # raise ValueError("The 3-isogeny has not yet been created")
         try:
             phi_dual = phi._dual
         except:
