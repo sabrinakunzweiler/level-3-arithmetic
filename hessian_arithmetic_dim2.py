@@ -506,14 +506,12 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         return J, kernel
 
     def igusa_clebsch_invariants(self):
-        ## todo: check which invariants are bad and which are good in sage
-        C, G = self.curve()
+        C = self.curve()
         return C.igusa_clebsch_invariants()
     
     def absolute_invariants(self):
-        ## todo: check which invariants are bad and which are good in sage
-        C, G = self.curve()
-        return C.absolute_igusa_invariants_wamelen()
+        C = self.curve()
+        return C.absolute_igusa_invariants_kohel()
 
     def random_point(self):
         """
