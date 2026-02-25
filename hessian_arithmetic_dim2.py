@@ -240,10 +240,11 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
     def canonical_isogeny(self, R1, R2, auxP=None):
         """
-        Create the canonical (3,3)-isogeny with kernel 3*(R1,R2).
+        Create the canonical (3,3)-isogeny with kernel 3*(R1,R2) = (Q1, Q2).
 
         If the codomain is reducible, and auxiliary point auxP
         is required to determine the equations
+        # TODO: recover R1, R2 from random points if they are not given
         """
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
 
@@ -539,6 +540,10 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             # addition matrix
             self._add_M = Matrix(self.base_ring(), [[c5,c1,c6,c7],[c1,c0,c2,c3],[c6,c2,c10,c11],[c7,c3,c11,c15]])
             return self._add_M
+
+    def canonical_basis(self):
+        Z = self._neutral_element
+        return (Z._add_P1(), Z._add_P2(), Z._add_Q1(), Z._add_Q2())
 
 class AbelianSurfaceHessianPoint(SageObject):
     r"""

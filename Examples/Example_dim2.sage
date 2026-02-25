@@ -64,12 +64,14 @@ phi_S12 = Phi(S12)
 assert phi_R12 == phi_T12
 assert phi_R12 == phi_S12
 
-
 H = Phi.codomain()
-P = H.random_element()
+P = H.random_point()
 
 # this works
 Q = P + P
 
 # this should be zero
 assert (p+1)*P == H.zero()
+
+# we can recreate the canonical basis
+P1, P2, Q1, Q2 = H.canonical_basis()
