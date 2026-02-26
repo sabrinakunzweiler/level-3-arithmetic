@@ -18,6 +18,7 @@ from sage.structure.sage_object import SageObject
 from sage.matrix.constructor import Matrix
 from sage.modules.free_module_element import vector
 from sage.rings.integer import Integer
+from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
 
 
 
@@ -193,6 +194,16 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         NOTE: Mapping through the elliptic curve only makes sense if self was 
         created from an elliptic curve in Weierstrass form.
         """
+        if len(coords) == 2:
+            x, y, z = coords + [1]
+        else:
+            x, y, z = coords
+        
+        # if they define a point, simply return the point
+        if self.defining_polynomial()(x, y, z) == 0:
+            return EllipticCurveHessianPoint(self, [x,y,z], check=check)
+            
+        # else, try the transformation
         try:
             _ = self._elliptic_curve(coords)
             if not self._trafo:
@@ -312,6 +323,16 @@ class EllipticCurveHessianForm(plane_curve.ProjectivePlaneCurve):
         else:
             K = self._base_ring
             return EllipticCurveHessianForm(K.one(), a=a/d**3)
+        
+    def random_point(self):
+        roots = []
+        while not roots:
+            try_y = self.base_ring().random_element()
+            R = PolynomialRing(self.base_ring(), "x")
+            x = R.gen()
+            equation = self.defining_polynomial()(x, try_y, 1)
+            roots = [r for r, _ in equation.roots()]
+        return self([roots[0], try_y, 1])
 
 class EllipticCurveHessianPoint(SageObject):
     r"""

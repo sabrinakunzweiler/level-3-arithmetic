@@ -123,6 +123,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         if OO:
             self._neutral_element = AbelianSurfaceHessianPoint(self, OO, check=check)
         else:
+            # TODO: given only [d, h], derive the neutral element
             pass
 
         AlgebraicScheme_subscheme_projective.__init__(self, P8, cubics+quadratics)
@@ -210,7 +211,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             d = self._d
             if d[3] != d[4]:
                 print("testing")
-                return self.product_structure_transformation().elliptic_curves()
+                return self.product_structure_transformation().codomain().elliptic_curves()
                 # raise NotImplementedError("We require that the abelian surface is equipped with the product theta structure")
             d1 = d[1]/d[4]
             d2 = d[2]/d[4]
@@ -512,27 +513,44 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         return C.igusa_clebsch_invariants()
     
     def absolute_invariants(self):
-        C = self.curve()
-        return C.absolute_igusa_invariants_kohel()
+        if self.is_irreducible():
+            C = self.curve()
+            return C.absolute_igusa_invariants_kohel()
+        
+        E1, E2 = self.elliptic_curves()
+        return (E1.j_invariant(), E2.j_invariant())
 
     def random_point(self):
         """
         Return a random point on the surface.
         """
-        Q = None
-        try:
-            K = self._kummer_odd
-        except:
-            self._kummer_odd = self.kummer_odd()
-            K = self._kummer_odd
-            
-        while Q is None:
-            P = K.random_point()
-            Q = P.lift(all_solutions=True)
-        res = sample(Q, 1)[0]
-        assert tuple(res) != (0,0,0,0,0,0,0,0,0) 
-        return res
+        if self.is_irreducible():
+            Q = None
+            try:
+                K = self._kummer_odd
+            except:
+                self._kummer_odd = self.kummer_odd()
+                K = self._kummer_odd
+                
+            while Q is None:
+                P = K.random_point()
+                Q = P.lift(all_solutions=True)
+            res = sample(Q, 1)[0]
+            assert tuple(res) != (0,0,0,0,0,0,0,0,0) 
+            return res
 
+        # otherwise, simply sample on the elliptic curves and send to the hessian
+        if self.is_reducible() and self._d[3] == self._d[4]:
+            E1, E2 = self.elliptic_curves()    
+            P1 = E1.random_point()
+            P2 = E2.random_point()
+            return self(self._segre(P1, P2))
+            
+        # TODO: save these structures to speed up sampling random points
+        isom = self.product_structure_transformation()
+        H_tmp = isom.codomain()
+        R = H_tmp.random_point()
+        return isom.inverse()(R)
 
     def addition_matrix(self):
         try:
@@ -977,15 +995,50 @@ class AbelianSurfaceHessianPoint(SageObject):
         return [VA0,VA1,VA2,VA3,VA4,VA5,VA6,VA7,VA8]
     
     def __add__(self, other):
-        # TODO: add input sanity
         assert self._parent == other._parent
-        mat = self._parent.addition_matrix()
-        vec1, vec2 = self.vector_form(), other.vector_form()
-        result = []
-        for i in range(9):
-            result.append(vec2[i] * mat * vec1[i])
+        
+        # when the surface is irreducible, we have conjectural addition formulas
+        if self._parent.is_irreducible():
+            mat = self._parent.addition_matrix()
+            vec1, vec2 = self.vector_form(), other.vector_form()
+            result = []
+            for i in range(9):
+                result.append(vec2[i] * mat * vec1[i])
 
-        return self._parent(result)       
+            if result == [0, 0, 0, 0, 0, 0, 0, 0, 0]:
+                # TODO: strange bug, should explore more
+                print(f"strange bug with {self} + {other}")
+                
+                # this workaround seems to often work
+                S = self._parent.random_point()
+                return (self + S) + (other + -S)
+
+            return self._parent(result)       
+
+        # when the surface is reducible
+        # TODO: clean up into matrix form
+        if self != other:
+            A0, A1, A2, A3, A4, A5, A6, A7, A8 = self.coordinates()
+            B0, B1, B2, B3, B4, B5, B6, B7, B8 = other.coordinates()
+
+            X0 = A4*A8*B0**2 - A3*A6*B1*B2 - A1*A2*B3*B6 + A0**2*B4*B8
+            X1 = -A5*A8*B0*B1 + A3*A7*B2**2 + A2**2*B3*B7 - A0*A1*B5*B8
+            X2 = A3*A8*B1**2 - A4*A7*B0*B2 - A0*A2*B4*B7 + A1**2*B3*B8
+            X3 = -A7*A8*B0*B3 + A6**2*B1*B5 + A1*A5*B6**2 - A0*A3*B7*B8
+            X4 = A8**2*B0*B4 - A6*A7*B2*B5 - A2*A5*B6*B7 + A0*A4*B8**2
+            X5 = -A6*A8*B1*B4 + A7**2*B0*B5 + A0*A5*B7**2 - A1*A4*B6*B8
+            X6 = A1*A8*B3**2 - A0*A6*B4*B5 - A4*A5*B0*B6 + A3**2*B1*B8
+            X7 = -A2*A8*B3*B4 + A0*A7*B5**2 + A5**2*B0*B7 - A3*A4*B2*B8
+            X8 = A0*A8*B4**2 - A1*A7*B3*B5 - A3*A5*B1*B7 + A4**2*B0*B8
+
+            return self._parent([X0, X1, X2, X3, X4, X5, X6, X7, X8])
+        
+        # if self == other, do a workaround
+        S = self._parent.random_point()
+        return (self + S) + (self - S)
+
+    def __sub__(self, other):
+        return self + (-other)
 
     def __rmul__(self, n):
         """

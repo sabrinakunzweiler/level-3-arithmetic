@@ -310,6 +310,25 @@ class AbelianSurfaceHessianFormHom(Morphism):
             return self._codomain(P._coords).negate()
         else:
             return self._codomain(P._coords)
+      
+    def inverse(self):
+        """
+            returns an inverse of the morphism, if it exists
+        """  
+        if self._kwd == "scaling":
+            K = self._base_ring
+            invscalars = [K(1/s) for s in self._scalars]
+            return AbelianSurfaceHessianFormHom(self.codomain(), invscalars, "scaling")
+        elif self._kwd == "DFT":
+            ## DFT and then [-1]
+            ## NOTE: everything is scaled by a factor 9, but projectively this doesnt matter
+            map1 = self.codomain().DFT()
+            map2 = map1.codomain().negation()
+            return map2*map1
+        elif self._kwd == "negation":
+            return self
+        else:
+            raise ValueError("Not invertible")
         
         
     def __mul__(self, other):
@@ -388,7 +407,7 @@ class AbelianSurfaceHessianFormCompositeHom(Morphism):
             return AbelianSurfaceHessianFormCompositeHom([other] + self._maps)
         elif type(other) == AbelianSurfaceHessianFormCompositeHom:
             assert other._maps[-1].codomain() == self._maps[0].domain()
-            return AbelianSurfaceHessianFormCompositeHom(other.maps + self._maps)
+            return AbelianSurfaceHessianFormCompositeHom(other._maps + self._maps)
         else:
             raise NotImplementedError("Unclear composition")
                     
@@ -407,3 +426,18 @@ class AbelianSurfaceHessianFormCompositeHom(Morphism):
     
     def morphisms(self):
         return self._maps
+    
+    def inverse(self):
+        """
+            returns the inverse of the chain of morphism, if it exists
+        """  
+        S = self.morphisms()
+        invS = []
+        for s in S:
+            try:
+                invS.append(s.inverse())
+            except:
+                raise NotImplementedError("Not implemented")
+        
+        invS.reverse()
+        return AbelianSurfaceHessianFormCompositeHom(invS)
