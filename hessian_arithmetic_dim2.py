@@ -653,7 +653,17 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             
             self._covering_basis = (R1, R2, S1, S2)
             return self._covering_basis
-
+        
+    def set_covering_basis(self, basis):
+        R1, R2, S1, S2 = basis
+        P1, P2, Q1, Q2 = self.canonical_basis()
+        if 3*R1 == P1  and 3*R2 == P2 and 3*S1 == Q1 and 3*S2 == Q2:
+            self._covering_basis = (R1, R2, S1, S2)
+            return True
+        
+        return False
+        
+        
 class AbelianSurfaceHessianPoint(SageObject):
     r"""
     Class for representing points on an Abelian surface in
