@@ -21,7 +21,7 @@ from sage.matrix.constructor import Matrix
 from sage.modules.free_module_element import vector
 from sage.schemes.projective.projective_subscheme import AlgebraicScheme_subscheme_projective
 from sage.rings.polynomial.polynomial_ring_constructor import PolynomialRing
-from sage.all import GF, ZZ
+from sage.all import GF, ZZ, factor
 
 from hessian_arithmetic_dim1 import EllipticCurveHessianForm
 
@@ -997,6 +997,11 @@ class AbelianSurfaceHessianPoint(SageObject):
     def __add__(self, other):
         assert self._parent == other._parent
         
+        if self.is_zero():
+            return other
+        if other.is_zero():
+            return self
+        
         # when the surface is irreducible, we have conjectural addition formulas
         if self._parent.is_irreducible():
             mat = self._parent.addition_matrix()
@@ -1017,6 +1022,7 @@ class AbelianSurfaceHessianPoint(SageObject):
 
         # when the surface is reducible
         # TODO: clean up into matrix form
+        # TODO: fix bug when self is order 3
         if self != other:
             A0, A1, A2, A3, A4, A5, A6, A7, A8 = self.coordinates()
             B0, B1, B2, B3, B4, B5, B6, B7, B8 = other.coordinates()
@@ -1058,6 +1064,37 @@ class AbelianSurfaceHessianPoint(SageObject):
             temp += temp
             n //= 2
         return result
+    
+    def order(self):
+        """
+            A naieve first approach to compute the order of a point,
+            derived from the order of the Hessian.
+            
+            TODO: we can get the order of the Hessian from the associated Jacobian or ell curves.
+            Unfortunately, sage hasn't implemented the order of generic Jacobians.
+            We therefore assume Hessians of exponent p+1
+        """
+        p = self._parent.base_ring().characteristic()
+        
+        if not ((p+1)*self).is_zero():
+            raise NotImplementedError("Not implemented yet")
+
+        ## TODO: implement as product tree instead of naive
+        ## TODO: bug remains with 3*R when R in A[3] for product A    
+        N = p+1
+        Q = self
+        
+        order = 1
+        for ell in factor(N):
+            R = (N // ell[0]**ell[1] )*Q
+            if R.is_zero():
+                continue
+            
+            while not R.is_zero():
+                order *= ell[0]
+                R = ell[0] * R
+
+        return order
 
 class HessianEvenKummerSurface(SageObject):
     r"""
