@@ -209,7 +209,9 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
                 raise ValueError("The abelian surface is not reducible.")
             d = self._d
             if d[3] != d[4]:
-                raise NotImplementedError("We require that the abelian surface is equipped with the product theta structure")
+                print("testing")
+                return self.product_structure_transformation().elliptic_curves()
+                # raise NotImplementedError("We require that the abelian surface is equipped with the product theta structure")
             d1 = d[1]/d[4]
             d2 = d[2]/d[4]
             assert d1*d2 == d[0]/d[4]
@@ -527,7 +529,9 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         while Q is None:
             P = K.random_point()
             Q = P.lift(all_solutions=True)
-        return sample(Q, 1)[0]
+        res = sample(Q, 1)[0]
+        assert tuple(res) != (0,0,0,0,0,0,0,0,0) 
+        return res
 
 
     def addition_matrix(self):
@@ -564,6 +568,17 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             self._canonical_basis = (Z._add_P1(), Z._add_P2(), Z._add_Q1(), Z._add_Q2())
             return self._canonical_basis
     
+    def _nine_torsion(self):
+        p = self._base_ring.characteristic()
+        
+        kill = (p + 1) // 9
+        while True:
+            R = kill*self.random_point()
+            if not (3*R).is_zero() and (9*R).is_zero():
+                break
+        
+        return R
+    
     def covering_basis(self):
         """
             returns a basis for the nine torsion R1, R2, S1, S2
@@ -594,17 +609,8 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
                 else:
                     raise ValueError("Point not in dictionary")
                 
-            def _nine_torsion():
-                kill = (p + 1) // 9
-                while True:
-                    R = kill*self.random_point()
-                    if not (3*R).is_zero() and (9*R).is_zero():
-                        break
-                
-                return R
-
             def _nine_basis():
-                R = _nine_torsion()
+                R = self._nine_torsion()
                 dec = _decompose(3*R)
 
                 basis = [R]
@@ -613,14 +619,16 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
                 matrix = Matrix(GF(3), decs)
                 
                 while matrix.rank() < 4:
-                    R = _nine_torsion()
+                    R = self._nine_torsion()
                     dec = _decompose(3*R)
                     
-                    if dec not in matrix.row_space():
+                    # this is a ridiculous way to do it, but it seems there
+                    # was a bug I couldnt explain otherwise
+                    new_matrix = Matrix(GF(3), decs + [dec])
+                    if new_matrix.rank() > matrix.rank():
                         basis.append(R)
                         decs.append(dec)
-                        decompositions = [_decompose(3 * R) for R in basis]
-                        matrix = Matrix(GF(3), decs)
+                        matrix = new_matrix
 
                 return basis, matrix
 
@@ -637,6 +645,11 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             R2 = _find_above(basis, matrix, [0, 1, 0, 0])
             S1 = _find_above(basis, matrix, [0, 0, 1, 0])
             S2 = _find_above(basis, matrix, [0, 0, 0, 1])
+            
+            assert 3*R1 == P1
+            assert 3*R2 == P2
+            assert 3*S1 == Q1
+            assert 3*S2 == Q2
             
             self._covering_basis = (R1, R2, S1, S2)
             return self._covering_basis
@@ -659,6 +672,7 @@ class AbelianSurfaceHessianPoint(SageObject):
         self.__base_ring = K
         self._parent = parent
 
+        assert coords != [0,0,0,0,0,0,0,0,0]
 
         if check:
             assert all([eq(coords) == 0 for eq in parent._equations])

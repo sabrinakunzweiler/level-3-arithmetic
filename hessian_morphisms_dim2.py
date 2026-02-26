@@ -310,6 +310,22 @@ class AbelianSurfaceHessianFormHom(Morphism):
             return self._codomain(P._coords).negate()
         else:
             return self._codomain(P._coords)
+        
+        
+    def __mul__(self, other):
+        """
+            two options: 
+                - other is a hom, return comp hom of two
+                - other is a comp hom, simply concatenate self after
+        """ 
+        if type(other) == AbelianSurfaceHessianFormHom:
+            assert other.codomain() == self.domain()
+            return AbelianSurfaceHessianFormCompositeHom([other, self])
+        elif type(other) == AbelianSurfaceHessianFormCompositeHom:
+            assert other._maps[-1].codomain() == self.domain()
+            return AbelianSurfaceHessianFormCompositeHom(other.maps + [self])
+        else:
+            raise NotImplementedError("Unclear composition")
 
 
 
@@ -360,6 +376,22 @@ class AbelianSurfaceHessianFormCompositeHom(Morphism):
             P = phi(P)
 
         return P
+    
+    def __mul__(self, other):
+        """
+            two options: 
+                - other is a hom, simply adjoin it in front
+                - other is a comp hom, simply concatenate before
+        """ 
+        if type(other) == AbelianSurfaceHessianFormHom:
+            assert other.codomain() == self._maps[0].domain()
+            return AbelianSurfaceHessianFormCompositeHom([other] + self._maps)
+        elif type(other) == AbelianSurfaceHessianFormCompositeHom:
+            assert other._maps[-1].codomain() == self._maps[0].domain()
+            return AbelianSurfaceHessianFormCompositeHom(other.maps + self._maps)
+        else:
+            raise NotImplementedError("Unclear composition")
+                    
 
     def domain(self):
         """
@@ -372,3 +404,6 @@ class AbelianSurfaceHessianFormCompositeHom(Morphism):
         Return the codomain of `self`
         """
         return self._codomain
+    
+    def morphisms(self):
+        return self._maps
