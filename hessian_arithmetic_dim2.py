@@ -210,7 +210,6 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
                 raise ValueError("The abelian surface is not reducible.")
             d = self._d
             if d[3] != d[4]:
-                print("testing")
                 return self.product_structure_transformation().codomain().elliptic_curves()
                 # raise NotImplementedError("We require that the abelian surface is equipped with the product theta structure")
             d1 = d[1]/d[4]
@@ -294,6 +293,15 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
 
         return AbelianSurfaceHessianFormHom(self, [], "negation")
+    
+    def is_product(self):
+        if self.is_irreducible():
+            return False
+        
+        if self._d[3] != self._d[4]:
+            return False
+        
+        return True
 
     def product_structure_transformation(self):
         """
@@ -368,8 +376,15 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         h = A._h
         d = A._d
         assert d[3] == d[4] #sanity check
+        A._neutral_element = A((0, 0, 0, 0, 1, -1, 0, -1, 1))   ## TODO: correct?
         trafos.append(trafo)
-        return AbelianSurfaceHessianFormCompositeHom(trafos)
+        res = AbelianSurfaceHessianFormCompositeHom(trafos)
+        
+        ## TODO: strange fix here: we can only compute this product structure transform
+        # given a "badly" compute self.zero (derived from codomain computation of isogeny)
+        # but when we define it as the inverse of the prod struc zero, arithmetic works out
+        self._neutral_element = res.inverse()(res.codomain().zero())
+        return res
         
     def _curve_GH(self):
         '''
@@ -572,6 +587,9 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
             # addition matrix
             self._add_M = Matrix(self.base_ring(), [[c5,c1,c6,c7],[c1,c0,c2,c3],[c6,c2,c10,c11],[c7,c3,c11,c15]])
+    
+            # assert not self._add_M.is_zero()            
+            
             return self._add_M
 
     def canonical_basis(self):
@@ -585,6 +603,15 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             Z = self._neutral_element
             self._canonical_basis = (Z._add_P1(), Z._add_P2(), Z._add_Q1(), Z._add_Q2())
             return self._canonical_basis
+    
+    def three_torsion(self):
+        three_tors = []
+        for a, b, c, d in product(range(3), repeat=4):
+            P = self.zero()._add_three_torsion(a, b, c, d)
+            P = P.normalize()
+            three_tors.append(P)
+
+        return three_tors
     
     def _nine_torsion(self):
         p = self._base_ring.characteristic()
@@ -616,7 +643,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             three_torsion_dictionairy = {}
 
             for a, b, c, d in product(range(3), repeat=4):
-                P = a*P1 + b*P2 + c*Q1 + d*Q2
+                P = self.zero()._add_three_torsion(a, b, c, d)
                 P = P.normalize()
                 three_torsion_dictionairy[tuple(P)] = (a, b, c, d)
 
@@ -973,12 +1000,40 @@ class AbelianSurfaceHessianPoint(SageObject):
         omega = parent._omega
         return parent([x0,x1,x2,omega*x3,omega*x4,omega*x5,omega**2*x6,omega**2*x7,omega**2*x8])
     
-    def normalize(self):
-        x0 = self._coords[0]
-        if x0 != 0:
-            return self._parent([xi / x0 for xi in self._coords])
+    def _add_three_torsion(self, a, b, c, d):
+        P = self
         
-        raise NotImplementedError("Not yet implemented")
+        for i in range(a):
+            P = P._add_P1()
+
+        for i in range(b):
+            P = P._add_P2()
+            
+        for i in range(c):
+            P = P._add_Q1()
+            
+        for i in range(d):
+            P = P._add_Q2()
+            
+        return P
+    
+    def normalize(self):
+        for xi in self._coords:
+            if xi != 0:
+                return self._parent([xj / xi for xj in self._coords])
+        
+        raise ValueError("Invalid point: all zero coordinates")
+    
+    def random_different_point(self):
+        """
+            returns a random point on the surface, different from self
+        """
+        for i in range(10):
+            S = self._parent.random_point()
+            if self != S:
+                return S
+            
+        raise ValueError("no different points available")
 
     def vector_form(self):
         A0, A1, A2, A3, A4, A5, A6, A7, A8 = self
@@ -1002,9 +1057,19 @@ class AbelianSurfaceHessianPoint(SageObject):
         if other.is_zero():
             return self
         
+        if self == other and self == -self:
+            return self._parent.zero()
+        
         # when the surface is irreducible, we have conjectural addition formulas
-        if self._parent.is_irreducible():
+        # these also seem to work as long as its just not in product form
+        # or there are not too many zeroes in h
+        if not self._parent.is_product():
             mat = self._parent.addition_matrix()
+            
+            if mat.is_zero():
+                # detour via product transform
+                return self.alternative_add(other)
+            
             vec1, vec2 = self.vector_form(), other.vector_form()
             result = []
             for i in range(9):
@@ -1020,28 +1085,53 @@ class AbelianSurfaceHessianPoint(SageObject):
 
             return self._parent(result)       
 
-        # when the surface is reducible
-        # TODO: clean up into matrix form
-        # TODO: fix bug when self is order 3
-        if self != other:
-            A0, A1, A2, A3, A4, A5, A6, A7, A8 = self.coordinates()
-            B0, B1, B2, B3, B4, B5, B6, B7, B8 = other.coordinates()
+        if self._parent.is_product():
+            # when the surface is reducible
+            # TODO: clean up into matrix form
+            # TODO: fix bug when self is order 3
+            if self != other:
+                A0, A1, A2, A3, A4, A5, A6, A7, A8 = self.coordinates()
+                B0, B1, B2, B3, B4, B5, B6, B7, B8 = other.coordinates()
 
-            X0 = A4*A8*B0**2 - A3*A6*B1*B2 - A1*A2*B3*B6 + A0**2*B4*B8
-            X1 = -A5*A8*B0*B1 + A3*A7*B2**2 + A2**2*B3*B7 - A0*A1*B5*B8
-            X2 = A3*A8*B1**2 - A4*A7*B0*B2 - A0*A2*B4*B7 + A1**2*B3*B8
-            X3 = -A7*A8*B0*B3 + A6**2*B1*B5 + A1*A5*B6**2 - A0*A3*B7*B8
-            X4 = A8**2*B0*B4 - A6*A7*B2*B5 - A2*A5*B6*B7 + A0*A4*B8**2
-            X5 = -A6*A8*B1*B4 + A7**2*B0*B5 + A0*A5*B7**2 - A1*A4*B6*B8
-            X6 = A1*A8*B3**2 - A0*A6*B4*B5 - A4*A5*B0*B6 + A3**2*B1*B8
-            X7 = -A2*A8*B3*B4 + A0*A7*B5**2 + A5**2*B0*B7 - A3*A4*B2*B8
-            X8 = A0*A8*B4**2 - A1*A7*B3*B5 - A3*A5*B1*B7 + A4**2*B0*B8
+                X0 = A4*A8*B0**2 - A3*A6*B1*B2 - A1*A2*B3*B6 + A0**2*B4*B8
+                X1 = -A5*A8*B0*B1 + A3*A7*B2**2 + A2**2*B3*B7 - A0*A1*B5*B8
+                X2 = A3*A8*B1**2 - A4*A7*B0*B2 - A0*A2*B4*B7 + A1**2*B3*B8
+                X3 = -A7*A8*B0*B3 + A6**2*B1*B5 + A1*A5*B6**2 - A0*A3*B7*B8
+                X4 = A8**2*B0*B4 - A6*A7*B2*B5 - A2*A5*B6*B7 + A0*A4*B8**2
+                X5 = -A6*A8*B1*B4 + A7**2*B0*B5 + A0*A5*B7**2 - A1*A4*B6*B8
+                X6 = A1*A8*B3**2 - A0*A6*B4*B5 - A4*A5*B0*B6 + A3**2*B1*B8
+                X7 = -A2*A8*B3*B4 + A0*A7*B5**2 + A5**2*B0*B7 - A3*A4*B2*B8
+                X8 = A0*A8*B4**2 - A1*A7*B3*B5 - A3*A5*B1*B7 + A4**2*B0*B8
 
-            return self._parent([X0, X1, X2, X3, X4, X5, X6, X7, X8])
-        
-        # if self == other, do a workaround
-        S = self._parent.random_point()
-        return (self + S) + (self - S)
+                result = [X0, X1, X2, X3, X4, X5, X6, X7, X8]
+                
+                if result == [0, 0, 0, 0, 0, 0, 0, 0, 0]:
+                    # TODO: strange bug, should explore more
+                    print(f"strange bug with {self} + {other}")
+                    
+                    # this workaround seems to often work
+                    S = self._parent.random_point()
+                    return (self + S) + (other + -S)
+
+                return self._parent(result)
+            
+            S = self.random_different_point()
+            return (self + S) + (self - S)
+                
+        raise NotImplementedError("Unclear situation for surface")
+
+    def alternative_add(self, other):
+        """
+            when the add matrix is zero (for a reducible, non-product),
+            map to the product, perform addition there, map back
+        """
+        try:
+            trafo, invtrafo = self._parent._product_transformation
+        except:
+            trafo = self._parent.product_structure_transformation()
+            invtrafo = trafo.inverse()
+            self._parent._product_transformation = (trafo, invtrafo)
+        return invtrafo(trafo(self) + trafo(other))
 
     def __sub__(self, other):
         return self + (-other)

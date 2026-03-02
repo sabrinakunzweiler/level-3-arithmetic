@@ -242,8 +242,16 @@ class AbelianSurfaceHessianFormHom(Morphism):
             new_d = d
 
         if not self._codomain:
+            # TODO: check if this actually works when we land on a product
+            # in particular, if the neutral element is OK
             self._codomain = AbelianSurfaceHessianForm([new_d, new_h], omega=self._domain._omega)
             self._codomain._neutral_element = self._codomain(new_OO._coords)
+            
+            # overwrite in this case, for some reason this only works when we 
+            # set the neutral element first, and then overwrite it
+            if new_d[3] == new_d[4]:
+                self._codomain._neutral_element = self._codomain((0, 0, 0, 0, 1, -1, 0, -1, 1))
+                
         # TODO:check if the following works
         self._domain._phi = self
 
