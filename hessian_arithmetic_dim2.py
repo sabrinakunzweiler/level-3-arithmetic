@@ -161,6 +161,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
         If coords consists of two elliptic curve points, the Segre embedding is computed.
         """
+        assert coords != [0, 0, 0, 0, 0, 0, 0, 0, 0]
         if len(coords) == 2:
             coords = self._segre(*coords) # point on the product
         return AbelianSurfaceHessianPoint(self, coords, check=check)
@@ -532,7 +533,11 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             return C.absolute_igusa_invariants_kohel()
         
         E1, E2 = self.elliptic_curves()
-        return (E1.j_invariant(), E2.j_invariant())
+        j1 = E1.j_invariant()
+        j2 = E2.j_invariant()
+        if j2 < j1:
+            j1, j2 = j2, j1
+        return (j1, j2)
 
     def random_point(self):
         """
@@ -635,7 +640,9 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             p = self._base_ring.characteristic()
             
             if not ((p+1)*self.random_point()).is_zero():
-                raise NotImplementedError("we assume exponent p+1 for the group structure")
+                # very rarely, this random point check fails, so we do it twice
+                if not ((p+1)*self.random_point()).is_zero():
+                    raise NotImplementedError("we assume exponent p+1 for the group structure")
                 
             P1, P2, Q1, Q2 = self.canonical_basis()
 
@@ -1082,7 +1089,7 @@ class AbelianSurfaceHessianPoint(SageObject):
 
             if result == [0, 0, 0, 0, 0, 0, 0, 0, 0]:
                 # TODO: strange bug, should explore more
-                print(f"strange bug with {self} + {other}")
+                # print(f"strange bug with {self} + {other}")
                 
                 # this workaround seems to often work
                 S = self._parent.random_point()
@@ -1112,7 +1119,7 @@ class AbelianSurfaceHessianPoint(SageObject):
                 
                 if result == [0, 0, 0, 0, 0, 0, 0, 0, 0]:
                     # TODO: strange bug, should explore more
-                    print(f"strange bug with {self} + {other}")
+                    # print(f"strange bug with {self} + {other}")
                     
                     # this workaround seems to often work
                     S = self._parent.random_point()
@@ -1190,6 +1197,17 @@ class AbelianSurfaceHessianPoint(SageObject):
                 R = ell[0] * R
 
         return order
+    
+    def _debug(self):
+        """
+            function to help with debug exploration
+        """
+        print(f"h = {self._parent._h}")
+        print(f"d = {self._parent._d}")
+        print(f"OO = {tuple(self._parent.zero())}")
+        print(f"H_debug = AbelianSurfaceHessianForm([d,h], omega, OO)")
+        print(f"P_debug = {tuple(self)}")
+        print(f"P_debug = H_debug(P_debug)")
 
 class HessianEvenKummerSurface(SageObject):
     r"""
@@ -1210,8 +1228,11 @@ class HessianEvenKummerSurface(SageObject):
         self._h = hessian_surface._h
         self._isogeny_neighbour = None
 
+        # TODO: fix these definitions
         P4 = ProjectiveSpace(4, self._base_ring,"U0,U1,U2,U3,U4")
-        P4.inject_variables()
+        # P4.inject_variables()        
+        U0, U1, U2, U3, U4 = P4.gens()
+        
         self._ambient_space = P4
         h0,h1,h2,h3,h4 = self._h
         self._quadric = 2*U0*(2*h0**2*U0 + h1**2*U1 + h2**2*U2 + h3**2*U3 + h4**2*U4) + 2*h0*(h1*U1**2 + h2*U2**2 + h3*U3**2 + h4*U4**2) +  2*((h3*h4)*U1*U2 + (h2*h4)*U1*U3 + (h1*h4)*U2*U3 + (h2*h3)*U1*U4 + (h1*h3)*U2*U4 + (h1*h2)*U3*U4)
@@ -1380,7 +1401,9 @@ class HessianOddKummerSurface(SageObject):
         self._isogeny_neighbour = None
 
         P3 = ProjectiveSpace(3, self._base_ring, 'V1,V2,V3,V4')
-        P3.inject_variables()
+        # P3.inject_variables()
+        V1,V2,V3,V4 = P3.gens()
+        
         self._ambient_space = P3
         h0,h1,h2,h3,h4 = self._h
 

@@ -234,8 +234,19 @@ class AbelianSurfaceHessianFormHom(Morphism):
                 new_d = auxP._compute_d()
                 new_h = auxP._compute_h()
             else:
-                new_d = new_OO._compute_d()
-                new_h = new_OO._compute_h()
+                # when the codomain is reducible, we need an auxP, but how do we know this before we try?
+                x0, x1, x2, x3, x4, x5, x6, x7, x8 = new_OO._coords
+                d0 = x0**3 + x1**3 + x2**3 + x3**3 + x4**3 + x5**3 + x6**3 + x7**3 + x8**3
+                if d0 == 0:
+                    auxP = self._domain.random_point()
+                    auxP = auxP._cubing()
+                    auxP = auxP._DFT()
+                    auxP = auxP._scale(self._scalars)
+                    new_d = auxP._compute_d()
+                    new_h = auxP._compute_h()            
+                else:
+                    new_d = new_OO._compute_d()
+                    new_h = new_OO._compute_h()
 
         elif kwd == "negation": #this is an automorphism
             new_OO = OO
