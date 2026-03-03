@@ -178,7 +178,8 @@ class AbelianSurfaceHessianFormHom(Morphism):
 
             - domain: The domain of the morphism (a p.p.a.s. in Hessian form)
             - args: a scaling vector if the morphism is a scaling,
-                or a tuple consisting of two 9-torsion points
+                or a tuple consisting of two 9-torsion points,
+                or an integer if the morphism is scalar multiplication
             - kwd: a keyword determining the type of morphism. Allowed keywords are:
                     "scaling", "DFT", "isogeny"
             - auxP: auxiliary point on the domain. Required if the codomain of an isogeny is reducible.
@@ -240,6 +241,16 @@ class AbelianSurfaceHessianFormHom(Morphism):
             new_OO = OO
             new_h = h
             new_d = d
+            
+        elif kwd == "scalar_multiplication":
+            scalar = args
+            assert scalar in ZZ
+            
+            new_OO = OO
+            new_h = h
+            new_d = d
+            self._codomain = self._domain
+            self._scalar = scalar
 
         if not self._codomain:
             # TODO: check if this actually works when we land on a product
@@ -249,7 +260,7 @@ class AbelianSurfaceHessianFormHom(Morphism):
             
             # overwrite in this case, for some reason this only works when we 
             # set the neutral element first, and then overwrite it
-            if new_d[3] == new_d[4]:
+            if self._codomain.is_reducible() and new_d[3] == new_d[4]:
                 self._codomain._neutral_element = self._codomain((0, 0, 0, 0, 1, -1, 0, -1, 1))
                 
         # TODO:check if the following works
@@ -292,6 +303,8 @@ class AbelianSurfaceHessianFormHom(Morphism):
             s = "Discrete Fourier transform "
         elif self._kwd == "isogeny" or self._kwd == "dual":
             s = "(3,3)-isogeny "
+        elif self._kwd == "scalar_multiplication":
+            s = f"scalar multiplication by [{self._scalar}]"
         if self._kwd == "negation":
             s = "multiplication by [-1]"
 
@@ -314,6 +327,8 @@ class AbelianSurfaceHessianFormHom(Morphism):
             P = P._cubing()
             P = P._DFT()
             P = P._scale(self._scalars)
+        elif self._kwd == "scalar_multiplication":
+            return self._scalar*P
         if self._kwd == "negation" or self._kwd == "dual":
             return self._codomain(P._coords).negate()
         else:

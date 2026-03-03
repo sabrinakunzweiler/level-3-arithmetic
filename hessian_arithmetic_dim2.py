@@ -25,7 +25,6 @@ from sage.all import GF, ZZ, factor
 
 from hessian_arithmetic_dim1 import EllipticCurveHessianForm
 
-
 class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
     r"""
     Abelian surface in Hessian form.
@@ -707,7 +706,13 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
             return True
         
         return False
-        
+    
+    def multiplication_by_m(self, m):
+        """
+            returns a morphism that performs multiplication by m
+        """
+        from hessian_morphisms_dim2 import AbelianSurfaceHessianFormHom
+        return AbelianSurfaceHessianFormHom(self, m, "scalar_multiplication")
         
 class AbelianSurfaceHessianPoint(SageObject):
     r"""
