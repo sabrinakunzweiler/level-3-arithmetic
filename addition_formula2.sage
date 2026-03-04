@@ -1,24 +1,36 @@
-R.<t1,t3,t4,t5> = ZZ[]
+R.<t1,t2,t3,t4> = ZZ[]
 
-c0 = 0
-c1 = t1^2 * t3
-c2 = t1*t4*t3
-c3 = -t1*t5*t3
-c4 = -t1^2*t3
-c5 = 0
-c6 = -t1*t4*t1
-c7 = -t1*t5*t1
-c8 = -t1*t4*t3
-c9 = t1*t4*t1
-c10 = 0
-c11 = t4*t5*t1
-c12 = t1*t5*t3
-c13 = t1*t5*t1
-c14 = -t4*t5*t1
-c15 = 0
+# c0 = 0
+# c1 = t1*t2
+# c2 = t2*t3
+# c3 = -t2*t4
+# c4 = -t1*t2
+# c5 = 0
+# c6 = -t1*t3
+# c7 = -t1*t4
+# c8 = -t2*t3
+# c9 = t1*t3
+# c10 = 0
+# c11 = t3*t4
+# c12 = t2*t4
+# c13 = t1*t4
+# c14 = -t3*t4
+# c15 = 0
 
-# addition matrix
-add_M = Matrix(R, [[c5,c4,c6,c7],[c1,c0,c2,c3],[c9,c8,c10,c11],[c13,c12,c14,c15]])
+# # addition matrix
+# add_M = Matrix(R, [
+#     [c5,c4,c6,c7],
+#     [c1,c0,c2,c3],
+#     [c9,c8,c10,c11],
+#     [c13,c12,c14,c15]
+# ])
+
+add_M = Matrix(R, [
+    [     0, -t1*t2, -t1*t3, -t1*t4],
+    [ t1*t2,      0,  t2*t3, -t2*t4],
+    [ t1*t3, -t2*t3,      0,  t3*t4],
+    [ t1*t4,  t2*t4, -t3*t4,      0]
+])
 
 def vector_form(P):
     A0, A1, A2, A3, A4, A5, A6, A7, A8 = P
@@ -36,8 +48,8 @@ def vector_form(P):
 
 def add(P, Q, B, odd_two_torsion_point):
     # P and Q are points on the Abelian surface B
-    _,t1,_,t3,t4,t5,_,_,_ = odd_two_torsion_point
-    mat = add_M(t1,t3,t4,t5)
+    _,t1,_,t2,t3,t4,_,_,_ = odd_two_torsion_point
+    mat = add_M(t1,t2,t3,t4)
     vec1, vec2 = vector_form(P), vector_form(Q)
     result = []
     for i in range(9):
