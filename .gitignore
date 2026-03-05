@@ -208,6 +208,5 @@ __marimo__/
 
 #local files
 graph.sage
-addition_formula_cleaning.sage
 debug.sage
 quicktest.sage

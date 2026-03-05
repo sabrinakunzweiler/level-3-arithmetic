@@ -470,7 +470,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         R = PolynomialRing(field, 'x')
         x = R.gen(0)
 
-        [a0,a1,a2,a3,a4] = [alpha0] + [alpha/2 for alpha in alphas[1:]]        
+        [a0,a1,a2,a3,a4] = [field(alpha0)] + [field(alpha/2) for alpha in alphas[1:]]        
         f = (1/field(4)*a0**4*a2**6 + 1/field(2)*a0**4*a2**3*a4**3 + 1/field(4)*a0**4*a4**6 + 8*a0*a1**3*a2**3*a4**3)*x**6  + (-3/field(2)*a0**4*a2**5*a3 - 3/field(2)*a0**4*a2**2*a3*a4**3 + 6*a0**2*a1**2*a2**4*a4**2 - 6*a0**2*a1**2*a2*a4**5 - 24*a0*a1**3*a2**2*a3*a4**3)*x**5 + (15/field(4)*a0**4*a2**4*a3**2 + 3/field(2)*a0**4*a2*a3**2*a4**3 - 6*a0**3*a1*a2**2*a4**4 - 24*a0**2*a1**2*a2**3*a3*a4**2 + 6*a0**2*a1**2*a3*a4**5 + 24*a0*a1**3*a2*a3**2*a4**3 - 12*a1**4*a2**2*a4**4)*x**4 + (-5*a0**4*a2**3*a3**3 - 1/field(2)*a0**4*a2**3*a4**3 - 1/field(2)*a0**4*a3**3*a4**3 + 1/field(2)*a0**4*a4**6 + 12*a0**3*a1*a2*a3*a4**4 + 36*a0**2*a1**2*a2**2*a3**2*a4**2 - 8*a0*a1**3*a2**3*a4**3 - 8*a0*a1**3*a3**3*a4**3 + 8*a0*a1**3*a4**6 + 24*a1**4*a2*a3*a4**4)*x**3 + (15/field(4)*a0**4*a2**2*a3**4 + 3/field(2)*a0**4*a2**2*a3*a4**3 - 6*a0**3*a1*a3**2*a4**4 - 24*a0**2*a1**2*a2*a3**3*a4**2 + 6*a0**2*a1**2*a2*a4**5 + 24*a0*a1**3*a2**2*a3*a4**3 - 12*a1**4*a3**2*a4**4)*x**2 + (-3/field(2)*a0**4*a2*a3**5 - 3/field(2)*a0**4*a2*a3**2*a4**3 + 6*a0**2*a1**2*a3**4*a4**2 - 6*a0**2*a1**2*a3*a4**5 - 24*a0*a1**3*a2*a3**2*a4**3)*x + 1/field(4)*a0**4*a3**6 + 1/field(2)*a0**4*a3**3*a4**3 + 1/field(4)*a0**4*a4**6 + 8*a0*a1**3*a3**3*a4**3
         
         return HyperellipticCurve(f)
