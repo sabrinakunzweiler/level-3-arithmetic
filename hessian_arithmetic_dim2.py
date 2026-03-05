@@ -398,16 +398,13 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         R = PolynomialRing(field, 'x')
         x = R.gen(0)
 
-        [a0,a1,a2,a3,a4] = [alpha0] + [alpha/2 for alpha in alphas[1:]]        
+        [a0,a1,a2,a3,a4] = [alpha0] + [field(alpha/2) for alpha in alphas[1:]]        
         
         inv2 = field(2)**-1
         assert 2*inv2 == 1
         
         #from Nasserden's thesis p.57
-        G2 =   (( -inv2*a0**3*a2**3 - inv2*a0**3*a4**3 - 8*a1**3*a4**3 ) / a0 *x**3
-        + (  inv2*3*a0**2*a2**2*a3 - 6*a1**2*a2*a4**2 ) * x**2
-        + ( -inv2*3*a0**2*a2*a3**2 + 6*a1**2*a3*a4**2 ) * x
-        + ( inv2*a0**2*a3**3 - inv2*a0**2*a4**3 ))
+        G2 =   (( -inv2*a0**3*a2**3 - inv2*a0**3*a4**3 - 8*a1**3*a4**3 ) / a0 *x**3 + (  inv2*3*a0**2*a2**2*a3 - 6*a1**2*a2*a4**2 ) * x**2 + ( -inv2*3*a0**2*a2*a3**2 + 6*a1**2*a3*a4**2 ) * x + ( inv2*a0**2*a3**3 - inv2*a0**2*a4**3 ))
 
         H2 = x**2 + inv2 * a0 * a2 / ( a1*a4 )*x - inv2 * a0*a3 / (a1 * a4)
         lam2 = ( -8 * a0**3 * a1**3 * a4**6 - 64 * a1**6 * a4**6 ) / a0**2        
@@ -426,7 +423,7 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         R = PolynomialRing(field, 'x')
         x = R.gen(0)
 
-        [a0,a1,a2,a3,a4] = [alpha0] + [alpha/2 for alpha in alphas[1:]]        
+        [a0,a1,a2,a3,a4] = [alpha0] + [field(alpha/2) for alpha in alphas[1:]]        
         
         inv2 = field(2)**-1
         assert 2*inv2 == 1
