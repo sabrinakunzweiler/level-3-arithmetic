@@ -211,3 +211,5 @@ graph.sage
 debug.sage
 quicktest.sage
 Examples/pairings.sage
+Examples/back_to_hessian.sage
+.gitignore

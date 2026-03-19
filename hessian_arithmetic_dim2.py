@@ -14,6 +14,7 @@ from sage.schemes.projective.projective_space import ProjectiveSpace
 from sage.schemes.projective.projective_point import SchemeMorphism_point_projective_ring
 from sage.schemes.elliptic_curves.ell_generic import EllipticCurve_generic
 from sage.schemes.hyperelliptic_curves.constructor import HyperellipticCurve
+from sage.schemes.jacobians.abstract_jacobian import Jacobian_generic
 from sage.sets.set import Set
 from sage.structure.element import RingElement
 from sage.structure.sage_object import SageObject
@@ -82,6 +83,15 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
                 omega = E1._omega
             except:
                 pass
+        #if the input is a Jacobian together with a symplectic basis, we use the inverse of Nasserden's formulae
+        # to recover h and d
+        # TODO: recover the theta null point
+        elif isinstance(args[0], Jacobian_generic):
+            J = args[0]
+            B = args[1]
+            self._h = self._invert_nasserden(J, B)   
+            self._d = self._derive_d_from_h()
+            K = J.base_ring()
         else:
             self._d = args[0]
             self._h = args[1]
@@ -165,6 +175,25 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         if len(coords) == 2:
             coords = self._segre(*coords) # point on the product
         return AbelianSurfaceHessianPoint(self, coords, check=check)
+    
+    def _derive_d_from_h(self):
+        # using equation 5 from Decru & Kunzweiler
+        x0, x1, x2, x3, x4 = self._h
+        d0 = 4*x0**3 + x1**3 + x2**3 + x3**3 + x4**3
+        d1 = 3*(x0*x1**2 + x2*x3*x4)
+        d2 = 3*(x0*x2**2 + x1*x3*x4)
+        d3 = 3*(x0*x3**2 + x1*x2*x4)
+        d4 = 3*(x0*x4**2 + x1*x2*x3)
+        return (d0, d1, d2, d3, d4)        
+
+    def _derive_h_from_zero(self):
+        # using Prop. 3.8 from Decru & Kunzweiler
+        t0, t1, t2, t3, t4 = self.short_zero()
+        h1 = - (t0**3 + 2*t1**3 - 1*(t2**3 + t3**3 + t4**3)) / (3*(t0*t1**2) - 3*(t2 * t3 * t4))
+        h2 = - (t0**3 + 2*t2**3 - 1*(t1**3 + t3**3 + t4**3)) / (3*(t0*t2**2) - 3*(t1 * t3 * t4))
+        h3 = - (t0**3 + 2*t3**3 - 1*(t1**3 + t2**3 + t4**3)) / (3*(t0*t3**2) - 3*(t1 * t2 * t4))
+        h4 = - (t0**3 + 2*t4**3 - 1*(t1**3 + t2**3 + t3**3)) / (3*(t0*t4**2) - 3*(t1 * t2 * t3))
+        return (1, h1, h2, h3, h4)
 
     def zero(self):
         """
@@ -543,6 +572,122 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         
         kernel = [K1, K2]
         return J, kernel
+    
+    def _invert_nasserden(self, J, B):
+        # inverts the formula in self.jacobian() to derive the Jacobian and (P1, P2, Q1, Q2)
+        # hence, takes a basis (P1, P2, Q1, Q2), derives the pencils H, λ, G such that y^2 = G^2 + 4λH^3
+        # and from this derives h1 up to h4, assuming h0 = 1
+        # this gives 9 possible values for h, we take a random one
+        
+        assert len(B) == 4
+        for P in B:
+            assert 3*P == J(0)
+        
+        # TODO: verify basis is symplectic
+        P1, P2, Q1, Q2 = [ 4*P for P in B]  # this resolves reducibility issues in the points
+        
+        field = J.base_ring()
+        K = PolynomialRing(field, 'X')
+        X = K.gen(0)
+        FF = -J.curve().defining_polynomial()(X, 0, 1)       
+
+        def _poly_match(f, g):
+            # helper function to get the right coefficients to match for equations in terms of polynomials
+            # e.g given f = Σ a_i X^i and g = Σ b_i X^i returns a list [ a_i - b_i ]
+            fc = f.coefficients()
+            gc = g.coefficients()
+            assert len(fc) == len(gc)
+            return [ fc[i] - gc[i] for i in range(len(fc))]
+                
+        def _get_pencil(P):
+            J = P.scheme()
+            field = J.base_ring()
+            K = PolynomialRing(field, 'X')
+            X = K.gen(0)
+            FF = -J.curve().defining_polynomial()(X, 0, 1)      
+        
+            # helper function to get pencil (H, λ, G) from a three-torsion point
+            assert 3*P == J(0)
+            a, b = P
+            
+            R = PolynomialRing(field, 'c0,c1,lam')
+            c0, c1, lam = R.gens()      
+            
+            R2 = PolynomialRing(R, 'X')
+            X = R2.gen(0)
+
+            FF = R2(FF)
+
+            GG = R2(b) + R2(a)*(c1*X + c0)
+            LHS = GG**2
+            RHS = FF - 4*lam*R2(a)**3
+
+            eqs = _poly_match(LHS, RHS)
+            I = R.ideal(eqs)
+            V = I.variety()
+            lam = V[0][lam]
+            c0 = V[0][c0]
+            c1 = V[0][c1]
+            GG = R2(b) + R2(a)*(c1*X + c0)
+            HH = R2(a)
+            assert FF == GG**2 + 4*lam*HH**3
+            return (HH, lam, GG)
+
+        
+        # first, we get the pencils for our basis
+        pencils = [ _get_pencil(P) for P in (P1, P2, Q1, Q2) ]
+
+        for (H, λ, G) in pencils:
+            assert FF == G**2 + 4*λ*H**3
+        
+        #then, we use Groebner bases to see if there's a matching h
+        RR = PolynomialRing(field, 'a1,a2,a3,a4')
+        a1, a2, a3, a4 = RR.gens()         
+        RRR = PolynomialRing(RR, 'X')
+        X = RRR.gen(0)
+        
+        pencils = [[ RRR(ff) for ff in HLG ] for HLG in pencils ]
+        
+        # as our pencils derive the H polynomials with leading coefficient 1, we turn Nasserden's formulas monic
+        HLGs = [[(a1**3*a3*a4**3+a1**2*a2**2*a4**5+a1**2*a2**2*a4**2+2*a1*a2*a3**2*a4**4-a1*a2*a3**2*a4-a2**3*a3+a3**4*a4**3)*X**2+(a1**4*a4**4+2*a1**2*a2*a3*a4**5-a1**2*a2*a3*a4**2+2*a1*a2**3*a4**4+a1*a2**3*a4+2*a1*a3**3*a4**4+a1*a3**3*a4+2*a2**2*a3**2*a4**3+2*a2**2*a3**2)*X+a1**3*a2*a4**3+a1**2*a3**2*a4**5+a1**2*a3**2*a4**2+2*a1*a2**2*a3*a4**4-a1*a2**2*a3*a4+a2**4*a4**3-a2*a3**3,(-a4**3-1)/(a1**6*a4**6-6*a1**4*a2*a3*a4**4-2*a1**3*a2**3*a4**3-2*a1**3*a3**3*a4**3+9*a1**2*a2**2*a3**2*a4**2+6*a1*a2**4*a3*a4+6*a1*a2*a3**4*a4+a2**6+2*a2**3*a3**3+a3**6),(a1**6*a4**6+3*a1**4*a2*a3*a4**7-3*a1**4*a2*a3*a4**4+2*a1**3*a2**3*a4**9+4*a1**3*a2**3*a4**6+3*a1**3*a3**3*a4**6+a1**3*a3**3*a4**3+6*a1**2*a2**2*a3**2*a4**8+3*a1**2*a2**2*a3**2*a4**5+6*a1**2*a2**2*a3**2*a4**2-3*a1*a2**4*a3*a4**4+3*a1*a2**4*a3*a4+6*a1*a2*a3**4*a4**7+a2**6-3*a2**3*a3**3*a4**3-a2**3*a3**3+2*a3**6*a4**6+a3**6*a4**3)/(a1**3*a4**3-3*a1*a2*a3*a4-a2**3-a3**3)*X**3+(3*a1**5*a2*a4**8+3*a1**5*a2*a4**5+6*a1**4*a3**2*a4**7+6*a1**4*a3**2*a4**4+6*a1**3*a2**2*a3*a4**9+6*a1**3*a2**2*a3*a4**6+6*a1**2*a2**4*a4**8+9*a1**2*a2**4*a4**5+3*a1**2*a2**4*a4**2+12*a1**2*a2*a3**3*a4**8+3*a1**2*a2*a3**3*a4**5-9*a1**2*a2*a3**3*a4**2+12*a1*a2**3*a3**2*a4**7+9*a1*a2**3*a3**2*a4**4-3*a1*a2**3*a3**2*a4+6*a1*a3**5*a4**7+6*a1*a3**5*a4**4-3*a2**5*a3*a4**3-3*a2**5*a3+6*a2**2*a3**4*a4**6+9*a2**2*a3**4*a4**3+3*a2**2*a3**4)/(a1**3*a4**3-3*a1*a2*a3*a4-a2**3-a3**3)*X**2+(3*a1**5*a3*a4**8+3*a1**5*a3*a4**5+6*a1**4*a2**2*a4**7+6*a1**4*a2**2*a4**4+6*a1**3*a2*a3**2*a4**9+6*a1**3*a2*a3**2*a4**6+12*a1**2*a2**3*a3*a4**8+3*a1**2*a2**3*a3*a4**5-9*a1**2*a2**3*a3*a4**2+6*a1**2*a3**4*a4**8+9*a1**2*a3**4*a4**5+3*a1**2*a3**4*a4**2+6*a1*a2**5*a4**7+6*a1*a2**5*a4**4+12*a1*a2**2*a3**3*a4**7+9*a1*a2**2*a3**3*a4**4-3*a1*a2**2*a3**3*a4+6*a2**4*a3**2*a4**6+9*a2**4*a3**2*a4**3+3*a2**4*a3**2-3*a2*a3**5*a4**3-3*a2*a3**5)/(a1**3*a4**3-3*a1*a2*a3*a4-a2**3-a3**3)*X+(a1**6*a4**6+3*a1**4*a2*a3*a4**7-3*a1**4*a2*a3*a4**4+3*a1**3*a2**3*a4**6+a1**3*a2**3*a4**3+2*a1**3*a3**3*a4**9+4*a1**3*a3**3*a4**6+6*a1**2*a2**2*a3**2*a4**8+3*a1**2*a2**2*a3**2*a4**5+6*a1**2*a2**2*a3**2*a4**2+6*a1*a2**4*a3*a4**7-3*a1*a2*a3**4*a4**4+3*a1*a2*a3**4*a4+2*a2**6*a4**6+a2**6*a4**3-3*a2**3*a3**3*a4**3-a2**3*a3**3+a3**6)/(a1**3*a4**3-3*a1*a2*a3*a4-a2**3-a3**3)],[a1*a4*X**2+a2*X-a3,-a1**3*a4**9-a1**3*a4**6+3*a1*a2*a3*a4**7+3*a1*a2*a3*a4**4+a2**3*a4**6+a2**3*a4**3+a3**3*a4**6+a3**3*a4**3,(2*a1**3*a4**6+a1**3*a4**3-3*a1*a2*a3*a4**4+a2**3-a3**3*a4**3)*X**3+(3*a1**2*a2*a4**5+3*a1**2*a2*a4**2-3*a2**2*a3*a4**3-3*a2**2*a3)*X**2+(-3*a1**2*a3*a4**5-3*a1**2*a3*a4**2+3*a2*a3**2*a4**3+3*a2*a3**2)*X-a1**3*a4**3-3*a1*a2*a3*a4**4-a2**3*a4**3-2*a3**3*a4**3-a3**3],[a2*X**2-a3*X-a1*a4,a1**3*a4**9+a1**3*a4**6-3*a1*a2*a3*a4**7-3*a1*a2*a3*a4**4-a2**3*a4**6-a2**3*a4**3-a3**3*a4**6-a3**3*a4**3,(a1**3*a4**3+3*a1*a2*a3*a4**4+2*a2**3*a4**3+a2**3+a3**3*a4**3)*X**3+(3*a1**2*a2*a4**5+3*a1**2*a2*a4**2-3*a2**2*a3*a4**3-3*a2**2*a3)*X**2+(-3*a1**2*a3*a4**5-3*a1**2*a3*a4**2+3*a2*a3**2*a4**3+3*a2*a3**2)*X-2*a1**3*a4**6-a1**3*a4**3+3*a1*a2*a3*a4**4+a2**3*a4**3-a3**3],[(a1*a2**2*a4**3+a1*a2**2)*X**2+(a1**3*a4**2+a1*a2*a3*a4**3-2*a1*a2*a3+a2**3*a4**2+a3**3*a4**2)*X+a1*a3**2*a4**3+a1*a3**2,(-a1**3*a4**3+3*a1*a2*a3*a4+a2**3+a3**3)/(a1**6+6*a1**4*a2*a3*a4+2*a1**3*a2**3+2*a1**3*a3**3+9*a1**2*a2**2*a3**2*a4**2+6*a1*a2**4*a3*a4+6*a1*a2*a3**4*a4+a2**6+2*a2**3*a3**3+a3**6),(a1**6*a4**3+6*a1**4*a2*a3*a4**4+2*a1**3*a2**3*a4**6+5*a1**3*a2**3*a4**3+a1**3*a2**3+2*a1**3*a3**3*a4**3+9*a1**2*a2**2*a3**2*a4**5+3*a1*a2**4*a3*a4**4-3*a1*a2**4*a3*a4+6*a1*a2*a3**4*a4**4-a2**6+a2**3*a3**3*a4**3-a2**3*a3**3+a3**6*a4**3)/(a1**3+3*a1*a2*a3*a4+a2**3+a3**3)*X**3+(3*a1**5*a2*a4**5+3*a1**5*a2*a4**2+3*a1**3*a2**2*a3*a4**6-3*a1**3*a2**2*a3+3*a1**2*a2**4*a4**5+3*a1**2*a2**4*a4**2+3*a1**2*a2*a3**3*a4**5+3*a1**2*a2*a3**3*a4**2+9*a1*a2**3*a3**2*a4**4+9*a1*a2**3*a3**2*a4+3*a2**5*a3*a4**3+3*a2**5*a3+3*a2**2*a3**4*a4**3+3*a2**2*a3**4)/(a1**3+3*a1*a2*a3*a4+a2**3+a3**3)*X**2+(-3*a1**5*a3*a4**5-3*a1**5*a3*a4**2-3*a1**3*a2*a3**2*a4**6+3*a1**3*a2*a3**2-3*a1**2*a2**3*a3*a4**5-3*a1**2*a2**3*a3*a4**2-3*a1**2*a3**4*a4**5-3*a1**2*a3**4*a4**2-9*a1*a2**2*a3**3*a4**4-9*a1*a2**2*a3**3*a4-3*a2**4*a3**2*a4**3-3*a2**4*a3**2-3*a2*a3**5*a4**3-3*a2*a3**5)/(a1**3+3*a1*a2*a3*a4+a2**3+a3**3)*X+(-a1**6*a4**3-6*a1**4*a2*a3*a4**4-2*a1**3*a2**3*a4**3-2*a1**3*a3**3*a4**6-5*a1**3*a3**3*a4**3-a1**3*a3**3-9*a1**2*a2**2*a3**2*a4**5-6*a1*a2**4*a3*a4**4-3*a1*a2*a3**4*a4**4+3*a1*a2*a3**4*a4-a2**6*a4**3-a2**3*a3**3*a4**3+a2**3*a3**3+a3**6)/(a1**3+3*a1*a2*a3*a4+a2**3+a3**3)]]
+        mHLGs = []
+        for (H, λ, G) in HLGs:
+            α = H.leading_coefficient()
+            mHLGs.append((H/α, λ*α**3, G))        
+
+        # we then set up our equations and clear denominators
+        eqs = []
+        for i in range(4):
+            # match H parts
+            Hi = mHLGs[i][0]
+            evi = pencils[i][0]
+            eqs += _poly_match( Hi, evi )
+            
+            # match λ parts
+            λi = mHLGs[i][1]
+            evi = pencils[i][1]
+            eqs += [λi - evi]
+            
+            # match G parts
+            Gi = mHLGs[i][2]
+            evi = pencils[i][2]
+            eqs += _poly_match( Gi, evi )
+            
+        for i in range(len(eqs)):
+            if eqs[i].denominator() != 1:
+                eqs[i] *= eqs[i].denominator()
+            
+            eqs[i] = RR(eqs[i])
+        
+        # groebner basis to get h ∈ V as matching solutions    
+        I = RR.ideal(eqs)
+        V = I.variety()
+        assert len(V) == 9
+
+        # we simply take a random one to return
+        h = V[0]
+        return (field(1), h[a1], h[a2], h[a3], h[a4])
+        
 
     def igusa_clebsch_invariants(self):
         C = self.curve()
