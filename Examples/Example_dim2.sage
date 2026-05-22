@@ -77,13 +77,10 @@ assert (p+1)*P == H.zero()
 # we can recreate the canonical basis
 P1, P2, Q1, Q2 = H.canonical_basis()
 
-# coordinate Z is of the form 
-# apply inv coords, apply hadamard
-λ0, λ1, λ2, λ3, λ4 = [ 1/d for d in H._d]
-
 def ZZZ(P):
     x0, x1, x2, x3, x4, x5, x6, x7, x8 = P.coordinates()
-    return λ0*x0 + λ1*x1 + λ1*x2 + λ2*x3 + λ3*x4 + λ4*x5 + λ2*x6 + λ4*x7 + λ3*x8
+    d0, d1, d2, d3, d4 = H._d
+    return d0*x0 + d1*x1 + d1*x2 + d2*x3 + d3*x4 + d4*x5 + d2*x6 + d4*x7 + d3*x8
 
 
 # in general, the cubical formula is simply
@@ -117,18 +114,20 @@ def tate_profile(Q):
 # these should be the weil pairings on our symplectic basis
 # and this verifies that indeed we get a symplectic basis
 # which is a good sign!
-print(tate_pairing_P1(Q1) / tate_pairing_Q1(P1) == om)
-print(tate_pairing_P1(Q2) / tate_pairing_Q2(P1) ==  1)
-print(tate_pairing_P2(Q2) / tate_pairing_Q2(P2) == om)
-print(tate_pairing_P2(Q1) / tate_pairing_Q1(P2) ==  1)
+assert (tate_pairing_P1(Q1) / tate_pairing_Q1(P1) == om)
+assert (tate_pairing_P1(Q2) / tate_pairing_Q2(P1) ==  1)
+assert (tate_pairing_P2(Q2) / tate_pairing_Q2(P2) == om)
+assert (tate_pairing_P2(Q1) / tate_pairing_Q1(P2) ==  1)
+print("symplicity check is OK")
 
 # what are some other ways in which we could verify the pairing?
 # triviality of the Tate pairing should check divisibility by [3] on A(Fq)
 # so at least P1, P2, Q1, Q2 should have a trivial profile...
-print(tate_profile(P1))
-print(tate_profile(P2))
-print(tate_profile(Q1))
-print(tate_profile(Q2))
+assert (tate_profile(P1)) == [1, 1, 1, 1]
+assert (tate_profile(P2)) == [1, 1, 1, 1]
+assert (tate_profile(Q1)) == [1, 1, 1, 1]
+assert (tate_profile(Q2)) == [1, 1, 1, 1]
+print("trivial profile check is OK")
 
 ## lets try bilinearity
 score = 0
@@ -137,4 +136,15 @@ for i in range(10):
     R = H.random_point()
     if (reduced_P1(Q)*reduced_P1(R) == reduced_P1(Q+R)):
         score += 1
-print(score)
+
+if score == 10:
+    print("bilinearity is checked!")
+
+## a nice tool to check divisibility
+for i in range(100):
+    Q = H.random_point()
+    if tate_profile(Q) == [1, 1, 1, 1]:
+        assert (((p+1) // 3)*Q).is_zero()
+    else:
+        assert tate_profile(3*Q) == [1, 1, 1, 1]
+print("divisibility is checked!")
