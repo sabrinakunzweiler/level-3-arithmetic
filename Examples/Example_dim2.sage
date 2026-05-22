@@ -75,3 +75,63 @@ assert (p+1)*P == H.zero()
 
 # we can recreate the canonical basis
 P1, P2, Q1, Q2 = H.canonical_basis()
+
+# coordinate Z is of the form 
+# apply inv coords, apply hadamard
+# does the addition matrix map through correctly?
+scals = [ 1/d for d in H._d]
+
+def ZZZ(P):
+    x0, x1, x2, x3, x4, x5, x6, x7, x8 = P.coordinates()
+    λ0, λ1, λ2, λ3, λ4 = scals
+    return λ0*x0 + λ1*x1 + λ1*x2 + λ2*x3 + λ3*x4 + λ4*x5 + λ2*x6 + λ4*x7 + λ3*x8
+
+def tate_pairing_P1(Q):  
+    Zero = H.zero().normalize()
+    MPZero = Zero._add_P1()
+    assert MPZero == P1
+    
+    Q_lift = Q.normalize()
+    MPQ = Q_lift._add_P1()
+    
+    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+
+def tate_pairing_P2(Q):  
+    Zero = H.zero().normalize()
+    MPZero = Zero._add_P2()
+    assert MPZero == P2
+    
+    Q_lift = Q.normalize()
+    MPQ = Q_lift._add_P2()
+    
+    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+
+def tate_pairing_Q1(Q):  
+    Zero = H.zero().normalize()
+    MPZero = Zero._add_Q1()
+    assert MPZero == Q1
+    
+    Q_lift = Q.normalize()
+    MPQ = Q_lift._add_Q1()
+    
+    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+
+def tate_pairing_Q2(Q):  
+    Zero = H.zero().normalize()
+    MPZero = Zero._add_Q2()
+    assert MPZero == Q2
+    
+    Q_lift = Q.normalize()
+    MPQ = Q_lift._add_Q2()
+    
+    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+
+def tate_profile(Q):
+    z1 = tate_pairing_P1(Q)
+    z2 = tate_pairing_P2(Q)
+    z3 = tate_pairing_Q1(Q)
+    z4 = tate_pairing_Q2(Q)
+    
+    exp3 = (p^2 - 1) // 3
+    
+    return [ z^exp3 for z in [z1, z2, z3, z4] ]
