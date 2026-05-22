@@ -8,6 +8,7 @@ F1 = GF(p)
 R.<x> = F1[]
 Fp.<om> = GF(p^2, modulus=x^2+x+1)
 omega = om
+exp3 = (p**2 - 1) // 3
 
 E1 = EllipticCurve(Fp, [1,0])
 # "random" isogenous curve with the same product structure
@@ -89,55 +90,29 @@ def ZZZ(P):
 # Z(M_P. Q~) Z(0~) / Z(M_P. 0~) Z(Q~)
 # for any cubical point Q~, 0~ above Q, 0.
 
-def tate_pairing_P1(Q):  
-    Zero = H.zero().normalize()
-    MPZero = Zero._add_P1()
-    assert MPZero == P1
-    
-    Q_lift = Q.normalize()
-    MPQ = Q_lift._add_P1()
-    
-    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+def tate_pairing_P1(Q):      
+    return (ZZZ(Q._add_P1()) * ZZZ(H.zero()) ) / (ZZZ(H.zero()._add_P1()) * ZZZ(Q)) 
 
-def tate_pairing_P2(Q):  
-    Zero = H.zero().normalize()
-    MPZero = Zero._add_P2()
-    assert MPZero == P2
-    
-    Q_lift = Q.normalize()
-    MPQ = Q_lift._add_P2()
-    
-    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+def tate_pairing_P2(Q):      
+    return (ZZZ(Q._add_P2()) * ZZZ(H.zero()) ) / (ZZZ(H.zero()._add_P2()) * ZZZ(Q)) 
 
-def tate_pairing_Q1(Q):  
-    Zero = H.zero().normalize()
-    MPZero = Zero._add_Q1()
-    assert MPZero == Q1
-    
-    Q_lift = Q.normalize()
-    MPQ = Q_lift._add_Q1()
-    
-    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+def tate_pairing_Q1(Q):      
+    return (ZZZ(Q._add_Q1()) * ZZZ(H.zero()) ) / (ZZZ(H.zero()._add_Q1()) * ZZZ(Q)) 
 
-def tate_pairing_Q2(Q):  
-    Zero = H.zero().normalize()
-    MPZero = Zero._add_Q2()
-    assert MPZero == Q2
-    
-    Q_lift = Q.normalize()
-    MPQ = Q_lift._add_Q2()
-    
-    return (ZZZ(MPQ) * ZZZ(Zero) ) / (ZZZ(MPZero) * ZZZ(Q_lift)) 
+def tate_pairing_Q2(Q):      
+    return (ZZZ(Q._add_Q2()) * ZZZ(H.zero()) ) / (ZZZ(H.zero()._add_Q2()) * ZZZ(Q)) 
 
-def tate_profile(Q):
-    exp3 = (p**2 - 1) // 3
-    
-    z1 = tate_pairing_P1(Q)**exp3
-    z2 = tate_pairing_P2(Q)**exp3
-    z3 = tate_pairing_Q1(Q)**exp3
-    z4 = tate_pairing_Q2(Q)**exp3
-    
-    return [z1, z2, z3, z4]
+def reduced_P1(Q):
+    return tate_pairing_P1(Q)**exp3
+def reduced_P2(Q):
+    return tate_pairing_P2(Q)**exp3
+def reduced_Q1(Q):
+    return tate_pairing_Q1(Q)**exp3
+def reduced_Q2(Q):
+    return tate_pairing_Q2(Q)**exp3
+
+def tate_profile(Q):  
+    return [ f(Q) for f in [reduced_P1, reduced_P2, reduced_Q1, reduced_Q2]]
 
 # these should be the weil pairings on our symplectic basis
 # and this verifies that indeed we get a symplectic basis
@@ -154,3 +129,12 @@ print(tate_profile(P1))
 print(tate_profile(P2))
 print(tate_profile(Q1))
 print(tate_profile(Q2))
+
+## lets try bilinearity
+score = 0
+for i in range(10):
+    Q = H.random_point()
+    R = H.random_point()
+    if (reduced_P1(Q)*reduced_P1(R) == reduced_P1(Q+R)):
+        score += 1
+print(score)
