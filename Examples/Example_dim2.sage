@@ -141,10 +141,57 @@ if score == 10:
     print("bilinearity is checked!")
 
 ## a nice tool to check divisibility
-for i in range(100):
+for i in range(10):
     Q = H.random_point()
     if tate_profile(Q) == [1, 1, 1, 1]:
         assert (((p+1) // 3)*Q).is_zero()
     else:
         assert tate_profile(3*Q) == [1, 1, 1, 1]
 print("divisibility is checked!")
+
+
+# now lets show how to efficiently sample above 3-torsion points
+# the idea is rather simple, above P1 points have profile [1, 1, om, 1]
+# simply sample random points until you have a rank-4 image in GL_4(ell)
+# this implies your random points span A(Fq)/[ell]A(Fq) and also
+# that you can take a linear combination to have profile [1, 1, om, 1]
+# that linear combination is the point you want above P1 
+
+F3 = GF(3)
+
+def dlog3(v):
+    if v == 1:  return F3(0)
+    if v == om: return F3(1)
+    return F3(2)
+
+def profile_vec(Q):
+    return vector(F3, [dlog3(v) for v in tate_profile(Q)])
+
+# Sample random points until their tate profiles span rank 4 over GF(3)
+basis_pts = []
+M_rows = []
+
+while len(basis_pts) < 4:
+    Q = H.random_point()
+    v = profile_vec(Q)
+    if matrix(F3, M_rows + [list(v)]).rank() > len(basis_pts):
+        basis_pts.append(Q)
+        M_rows.append(list(v))
+
+M = matrix(F3, M_rows)
+
+assert M.rank() == 4
+
+# Find R with profile [1, 1, om, 1] <-> log-vector [0, 0, 1, 0]
+# We want coeffs * M = target
+target = vector(F3, [0, 0, 1, 0])
+coeffs = M.solve_left(target)
+
+# now simply create the right point as a linear combination
+R = H.zero()
+for i in range(4):
+    if coeffs[i] != 0:
+        R = R + ZZ(coeffs[i]) * basis_pts[i]
+
+
+print(f"R has profile {tate_profile(R)}")
