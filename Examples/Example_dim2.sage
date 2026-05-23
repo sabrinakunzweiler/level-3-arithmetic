@@ -195,3 +195,4 @@ for i in range(4):
 
 
 print(f"R has profile {tate_profile(R)}")
+print(f"R is above P1: {((p+1) // 3)*R == P1}")
