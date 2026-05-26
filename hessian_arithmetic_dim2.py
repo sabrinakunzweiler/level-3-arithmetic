@@ -836,21 +836,25 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
 
             M = Matrix(F3, M_rows)
 
-            def _find_above(target_log):
-                # Solve coeffs * M = target_log  (Tate profile is additive in log-space)
-                coeffs = M.solve_left(vector(F3, target_log))
+            # Solve all four targets go
+            targets = Matrix(F3, [[0, 0, 1, 0],                 # corresponds to P1
+                                  [0, 0, 0, 1],                 # corresponds to P2
+                                  [2, 0, 0, 0],                 # corresponds to Q1
+                                  [0, 2, 0, 0]])                # corresponds to Q2
+            all_coeffs = M.solve_left(targets)
 
+            # now take the correct linear combinations to find actual points above our targets
+            def _find_above(coeffs):
                 R = self.zero()
                 for i in range(4):
                     if coeffs[i] != 0:
                         R = R + ZZ(coeffs[i]) * basis_pts[i]
-                
                 return R
-        
-            R1 = _find_above([0, 0, 1, 0])
-            R2 = _find_above([0, 0, 0, 1])
-            S1 = _find_above([2, 0, 0, 0])
-            S2 = _find_above([0, 2, 0, 0])
+
+            R1 = _find_above(all_coeffs[0])
+            R2 = _find_above(all_coeffs[1])
+            S1 = _find_above(all_coeffs[2])
+            S2 = _find_above(all_coeffs[3])
             
             R1 = ((p+1) // 9) * R1
             R2 = ((p+1) // 9) * R2
