@@ -811,57 +811,51 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
                     raise NotImplementedError("we assume exponent p+1 for the group structure")
                 
             P1, P2, Q1, Q2 = self.canonical_basis()
-
-            three_torsion_dictionairy = {}
-
-            for a, b, c, d in product(range(3), repeat=4):
-                P = self.zero()._add_three_torsion(a, b, c, d)
-                P = P.normalize()
-                three_torsion_dictionairy[tuple(P)] = (a, b, c, d)
-
-            def _decompose(R):
-                R = tuple(R.normalize())
-                if R in three_torsion_dictionairy:
-                    return three_torsion_dictionairy[R]
-                else:
-                    raise ValueError("Point not in dictionary")
-                
-            def _nine_basis():
-                R = self._nine_torsion()
-                dec = _decompose(3*R)
-
-                basis = [R]
-                decs = [dec]
-                
-                matrix = Matrix(GF(3), decs)
-                
-                while matrix.rank() < 4:
-                    R = self._nine_torsion()
-                    dec = _decompose(3*R)
-                    
-                    # this is a ridiculous way to do it, but it seems there
-                    # was a bug I couldnt explain otherwise
-                    new_matrix = Matrix(GF(3), decs + [dec])
-                    if new_matrix.rank() > matrix.rank():
-                        basis.append(R)
-                        decs.append(dec)
-                        matrix = new_matrix
-
-                return basis, matrix
-
-            def _find_above(basis, matrix, target):
-                lincomb = matrix.solve_left(vector(GF(3),target))
-                res = basis[0]._parent.zero()
-                for i in range(4):
-                    res += ZZ(lincomb[i])*basis[i]
-                
-                return res
+            omega = self._omega
         
-            basis, matrix = _nine_basis()
-            R1 = _find_above(basis, matrix, [1, 0, 0, 0])
-            R2 = _find_above(basis, matrix, [0, 1, 0, 0])
-            S1 = _find_above(basis, matrix, [0, 0, 1, 0])
-            S2 = _find_above(basis, matrix, [0, 0, 0, 1])
+            F3 = GF(3)
+
+            def _dlog3(v):
+                if v == 1:     return F3(0)
+                if v == omega: return F3(1)
+                return F3(2)
+
+            def _profile_vec(Q):
+                return vector(F3, [_dlog3(v) for v in Q.tate_profile(3)])
+
+            # Sample random points until their profile matrix has rank 4 over GF(3)
+            basis_pts = []
+            M_rows = []
+
+            while len(basis_pts) < 4:
+                Q = self.random_point()
+                v = _profile_vec(Q)
+                if Matrix(F3, M_rows + [list(v)]).rank() > len(basis_pts):
+                    basis_pts.append(Q)
+                    M_rows.append(list(v))
+
+            M = Matrix(F3, M_rows)
+
+            def _find_above(target_log):
+                # Solve coeffs * M = target_log  (Tate profile is additive in log-space)
+                coeffs = M.solve_left(vector(F3, target_log))
+
+                R = self.zero()
+                for i in range(4):
+                    if coeffs[i] != 0:
+                        R = R + ZZ(coeffs[i]) * basis_pts[i]
+                
+                return R
+        
+            R1 = _find_above([0, 0, 1, 0])
+            R2 = _find_above([0, 0, 0, 1])
+            S1 = _find_above([2, 0, 0, 0])
+            S2 = _find_above([0, 2, 0, 0])
+            
+            R1 = ((p+1) // 9) * R1
+            R2 = ((p+1) // 9) * R2
+            S1 = ((p+1) // 9) * S1
+            S2 = ((p+1) // 9) * S2
             
             assert 3*R1 == P1
             assert 3*R2 == P2
@@ -880,6 +874,78 @@ class AbelianSurfaceHessianForm(AlgebraicScheme_subscheme_projective):
         
         return False
     
+    def sample_above(self, P):
+        """
+        Return a point R on self satisfying ``((p+1) // 3) * R == P``,
+        where P is one of the canonical 3-torsion basis elements
+        ``(P1, P2, Q1, Q2)`` returned by :meth:`canonical_basis`.
+
+        The algorithm builds a rank-4 basis of random points whose Tate
+        profiles span `(Z/3Z)^4`, then takes the unique linear combination
+        whose profile matches the one that characterises points above P::
+
+            above P1  <->  [1,    1, om,    1]   (log: [0, 0, 1, 0])
+            above P2  <->  [1,    1,  1,   om]   (log: [0, 0, 0, 1])
+            above Q1  <->  [om^2, 1,  1,    1]   (log: [2, 0, 0, 0])
+            above Q2  <->  [1, om^2,  1,    1]   (log: [0, 2, 0, 0])
+
+        INPUT:
+
+        - ``P`` -- one of the four canonical 3-torsion basis elements.
+
+        OUTPUT:
+
+        A point R with ``((p+1) // 3) * R == P``.
+
+        RAISES:
+
+        - ``ValueError`` if P is not one of the four canonical basis elements.
+        """
+        P1, P2, Q1, Q2 = self.canonical_basis()
+        omega = self._omega
+
+        if   P == P1: target_log = [0, 0, 1, 0]
+        elif P == P2: target_log = [0, 0, 0, 1]
+        elif P == Q1: target_log = [2, 0, 0, 0]
+        elif P == Q2: target_log = [0, 2, 0, 0]
+        else:
+            raise ValueError(
+                "P must be one of the canonical 3-torsion basis elements P1, P2, Q1, Q2"
+            )
+
+        F3 = GF(3)
+
+        def _dlog3(v):
+            if v == 1:     return F3(0)
+            if v == omega: return F3(1)
+            return F3(2)
+
+        def _profile_vec(Q):
+            return vector(F3, [_dlog3(v) for v in Q.tate_profile(3)])
+
+        # Sample random points until their profile matrix has rank 4 over GF(3)
+        basis_pts = []
+        M_rows = []
+
+        while len(basis_pts) < 4:
+            Q = self.random_point()
+            v = _profile_vec(Q)
+            if Matrix(F3, M_rows + [list(v)]).rank() > len(basis_pts):
+                basis_pts.append(Q)
+                M_rows.append(list(v))
+
+        M = Matrix(F3, M_rows)
+
+        # Solve coeffs * M = target_log  (Tate profile is additive in log-space)
+        coeffs = M.solve_left(vector(F3, target_log))
+
+        R = self.zero()
+        for i in range(4):
+            if coeffs[i] != 0:
+                R = R + ZZ(coeffs[i]) * basis_pts[i]
+
+        return R
+
     def multiplication_by_m(self, m):
         """
             returns a morphism that performs multiplication by m
@@ -1194,7 +1260,108 @@ class AbelianSurfaceHessianPoint(SageObject):
             P = P._add_Q2()
             
         return P
-    
+
+    # -----------------------------------------------------------------------
+    # Cubical Tate pairing and profile
+    # -----------------------------------------------------------------------
+
+    def ZZZ(self):
+        """
+        Evaluate the theta-null linear form at ``self``.
+
+        The form is::
+
+            d0*x00 + d1*(x01 + x02) + d2*(x10 + x20) + d3*(x11 + x22) + d4*(x12 + x21)
+
+        where ``(d0,...,d4)`` are the surface constants stored in
+        ``self._parent._d``.
+        """
+        x0, x1, x2, x3, x4, x5, x6, x7, x8 = self._coords
+        d0, d1, d2, d3, d4 = self._parent._d
+        return d0*x0 + d1*x1 + d1*x2 + d2*x3 + d3*x4 + d4*x5 + d2*x6 + d4*x7 + d3*x8
+
+    def tate_pairing_P1(self):
+        """
+        Compute the cubical Tate pairing of ``self`` with ``P1``.
+
+        The formula is::
+
+            Z(M_{P1} · Q~) · Z(0~) / (Z(M_{P1} · 0~) · Z(Q~))
+
+        where ``Z`` is the theta-null linear form :meth:`ZZZ`, ``M_{P1}``
+        denotes translation by P1, and ``Q~ = self``.
+        """
+        O = self._parent.zero()
+        return (self._add_P1().ZZZ() * O.ZZZ()) / (O._add_P1().ZZZ() * self.ZZZ())
+
+    def tate_pairing_P2(self):
+        """
+        Compute the cubical Tate pairing of ``self`` with ``P2``.
+        """
+        O = self._parent.zero()
+        return (self._add_P2().ZZZ() * O.ZZZ()) / (O._add_P2().ZZZ() * self.ZZZ())
+
+    def tate_pairing_Q1(self):
+        """
+        Compute the cubical Tate pairing of ``self`` with ``Q1``.
+        """
+        O = self._parent.zero()
+        return (self._add_Q1().ZZZ() * O.ZZZ()) / (O._add_Q1().ZZZ() * self.ZZZ())
+
+    def tate_pairing_Q2(self):
+        """
+        Compute the cubical Tate pairing of ``self`` with ``Q2``.
+        """
+        O = self._parent.zero()
+        return (self._add_Q2().ZZZ() * O.ZZZ()) / (O._add_Q2().ZZZ() * self.ZZZ())
+
+    def reduced_tate_P1(self):
+        """
+        Return the reduced Tate pairing of ``self`` with ``P1``,
+        i.e. :meth:`tate_pairing_P1` raised to the power ``(q-1)/3``
+        where ``q`` is the cardinality of the base field.
+        """
+        q = self._parent._base_ring.cardinality()
+        return self.tate_pairing_P1() ** ((q - 1) // 3)
+
+    def reduced_tate_P2(self):
+        """
+        Return the reduced Tate pairing of ``self`` with ``P2``.
+        """
+        q = self._parent._base_ring.cardinality()
+        return self.tate_pairing_P2() ** ((q - 1) // 3)
+
+    def reduced_tate_Q1(self):
+        """
+        Return the reduced Tate pairing of ``self`` with ``Q1``.
+        """
+        q = self._parent._base_ring.cardinality()
+        return self.tate_pairing_Q1() ** ((q - 1) // 3)
+
+    def reduced_tate_Q2(self):
+        """
+        Return the reduced Tate pairing of ``self`` with ``Q2``.
+        """
+        q = self._parent._base_ring.cardinality()
+        return self.tate_pairing_Q2() ** ((q - 1) // 3)
+
+    def tate_profile(self, ell):
+        """
+        Return the Tate profile of ``self`` at prime ``ell``.
+
+        The Tate profile is the list of reduced Tate pairings with the
+        four canonical basis elements ``(P1, P2, Q1, Q2)`` of ``A[ell]``::
+
+            [<self, P1>, <self, P2>, <self, Q1>, <self, Q2>]
+
+        Only ``ell = 3`` is currently implemented; any other value raises
+        :class:`NotImplementedError`.
+        """
+        if ell != 3:
+            raise NotImplementedError(f"tate_profile is not implemented for ell={ell}")
+        return [self.reduced_tate_P1(), self.reduced_tate_P2(),
+                self.reduced_tate_Q1(), self.reduced_tate_Q2()]
+
     def normalize(self):
         for xi in self._coords:
             if xi != 0:
