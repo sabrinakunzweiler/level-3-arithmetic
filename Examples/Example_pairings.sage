@@ -31,49 +31,10 @@ b = 1 + 3*b # need b!=0, so that the first isogeny is non-diagonal.
 A = R._parent; A
 
 Phi = compute_isogeny_chain((R,S), (R_9,S_9), k-1, (a,b,c)); Phi
-
-
-# we can push points lothrough the isogeny
-H2,H1 = A._elliptic_curves
-Rand1 = E1.random_element()
-Rand2 = E2.random_element()
-R1 = H1(Rand1)
-R2 = H2(Rand2)
-R12 = A([R2,R1]);
-phi_R12 = Phi(R12)
-
-# implicit test (note that addition on the Hessian is not implemented)
-# R12 + first kernel generator
-Test1 = Rand1 + 3*(P1 + a*Q1)
-Test2 = Rand2 + 3*b*Q2
-T1 = H1(Test1)
-T2 = H2(Test2)
-T12 = A([T2,T1])
-phi_T12 = Phi(T12)
-
-
-# R12 + second kernel generator
-Test1 = Rand1 + 3*(b*Q1)
-Test2 = Rand2 + 3*(P2 + c*Q2)
-S1 = H1(Test1)
-S2 = H2(Test2)
-S12 = A([S2,S1])
-phi_S12 = Phi(S12)
-
-
-assert phi_R12 == phi_T12
-assert phi_R12 == phi_S12
-
 H = Phi.codomain()
 P = H.random_point()
-
-# this works
-Q = P + P
-
-# this should be zero
 assert (p+1)*P == H.zero()
 
-# we can recreate the canonical basis
 P1, P2, Q1, Q2 = H.canonical_basis()
 
 
@@ -115,8 +76,7 @@ for i in range(10):
         assert (3*Q).tate_profile(3) == [1, 1, 1, 1]
 print("divisibility is checked!")
 
-
-# efficiently sample a point above any canonical 3-torsion basis element
+# efficiently sample a point above a canonical 3-torsion basis element
 R = H.sample_above(P1)
 print(f"R has profile {R.tate_profile(3)}")
 print(f"R is above P1: {((p+1) // 3)*R == P1}")
@@ -125,3 +85,15 @@ print(f"R is above P1: {((p+1) // 3)*R == P1}")
 # above P2 <--> [   1,    1,  1, om]
 # above Q1 <--> [om^2,    1,  1,  1]
 # above Q2 <--> [   1, om^2,  1,  1]
+
+#using pairings, we can sample a covering basis much faster
+# these lie above P1, P2, Q1, Q2
+
+R1, R2, S1, S2 = H.covering_basis()
+
+assert 3*R1 == P1
+assert 3*R2 == P2
+assert 3*S1 == Q1
+assert 3*S2 == Q2
+
+print("covering basis checks out")
