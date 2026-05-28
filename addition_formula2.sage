@@ -178,7 +178,6 @@ def test_addition():
     
     return add(P, Q, B, odd_two_torsion_point1) == PQ
 
-
 def test_doubling():
     
     # We first sample a random abelian surface as the image of a (3,3)-isogeny chain
@@ -279,3 +278,4 @@ def test_doubling():
 
 print(f"addition works: {test_addition()}")
 print(f"doubling works: {test_doubling()}")
+print(test_formula())
