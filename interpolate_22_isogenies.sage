@@ -31,6 +31,9 @@ def test_tuple(tup, idx):
 # Expected degree of the monomials occuring in the formula
 monomial_degree = 4
 
+# For now, only allows monomial degrees that are not 0 mod 3
+assert monomial_degree%3
+
 # Monomials expected to appear in Y0
 mons0 = [
     list(t)
@@ -51,6 +54,11 @@ all_mons = [
     for idx in range(9)
     
 ]
+
+number_of_mons = len(all_mons[0])
+
+assert prod(number_of_mons == len(all_mons[i]) for i in range(9))
+
 
 # Isolate the computation of the (3,3)-isogeny chain as a separate function
 
@@ -208,8 +216,6 @@ while True:
 
         minus = [0, 2, 1, 6, 8, 7, 3, 5, 4]
 
-        number_of_mons = len(all_mons[0])
-
         rows = []
 
         for i in range(1, 9):
@@ -229,7 +235,7 @@ while True:
     
     mat = []
     
-    for s in range(60):
+    for s in range(number_of_mons + 2):
         sample = get_sample()
         rows = get_rows(sample)
         mat += rows
@@ -249,17 +255,31 @@ while True:
 
     bas = K.basis()
 
-    l = len(bas[0])
-
-    # Non-trivial relations between (im_P[0] : im_P[2]) and monomials in the coordinates of P
-
-    non_trivial_relations = [b for b in bas if (
-                                not is_zero(b[:(l//9)])
-                                    and not is_zero(b[(l//9):2*(l//9)])
-                                         and is_zero(b[2*(l//9):])
-                                )
-                            ]
-
-    print(f'The dimension of the space of non-trivial relations is {len(non_trivial_relations)}')
-
     break
+
+def count_nonzero_components(basis_vector):
+    
+    assert len(basis_vector) == 9 * number_of_mons
+
+    non_zero_count = 0
+
+    for i in range(9):
+        
+        lower_bound = number_of_mons * i
+        
+        upper_bound = number_of_mons * (i + 1)
+        
+        component = basis_vector[lower_bound:upper_bound]
+        
+        if not is_zero(component):
+            non_zero_count += 1
+
+    return non_zero_count
+
+dim_non_triv = 0
+
+for b in bas:
+    if count_nonzero_components(b) > 1:
+        dim_non_triv += 1
+
+print(f'The dimension of the space of non-trivial relations is {dim_non_triv}')
