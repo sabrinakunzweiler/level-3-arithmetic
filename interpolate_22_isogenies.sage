@@ -215,7 +215,7 @@ while True:
         for i in range(1, 9):
             
             betweenzeros = number_of_mons * (i - 1)
-            postzeros = number_of_mons * (9 - i + 1)
+            postzeros = number_of_mons * (9 - i - 1)
     
             row = ([im_P[minus[i]] * m for m in all_monomials[0]]
                    + zero_list(betweenzeros)
