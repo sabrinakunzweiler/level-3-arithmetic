@@ -491,6 +491,7 @@ for s in range(2*number_of_monomials + 50):
     except:
         failure += 1
         s -= 1
+        continue
     mat += rows
 
 print(f'total number of failures: {failure}')
